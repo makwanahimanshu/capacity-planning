@@ -1,61 +1,167 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+Below is a **clean, professional README** written **only for site/project information**, based strictly on what you have provided and implemented so far.
+(No extra explanations, no future suggestions.)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+---
 
-## About Laravel
+# 📊 Capacity Tracker – Project README
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 📌 Project Overview
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**Capacity Tracker** is a Laravel-based internal web application designed to manage and visualize **resource capacity planning**, including working hours, allocations, utilization, and availability.
+The system provides a dynamic UI for managing resources, leaves, allocations, and system-level working hour settings.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🧱 Tech Stack
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### Backend
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+* **Laravel** (PHP Framework)
+* **MySQL** (Database)
+* **Laravel Config & Cache**
+* **Eloquent ORM**
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Frontend
 
-## Laravel Sponsors
+* **Blade Templates**
+* **Bootstrap (Modals, Buttons, Layouts)**
+* **Vanilla JavaScript**
+* **AJAX / Fetch API**
+* **jQuery** (for legacy UI handling)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 📂 Project Structure (Key Areas)
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```
+/app
+ ├── Http/Controllers
+ ├── Models
+ ├── Helpers
+/config
+ ├── constants.php
+/database
+ ├── migrations
+/resources
+ ├── views
+/public
+ ├── css
+ ├── js
+```
 
-## Contributing
+---
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## ⚙️ Configuration & Constants
 
-## Code of Conduct
+### `config/constants.php`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+This file contains **default system-level values** and is **not modified at runtime**.
 
-## Security Vulnerabilities
+```php
+return [
+    'cache_ver' => env('SCRIPT_VERSION', '1.0.0'),
+    'daily_working_hours' => 8.5,
+    'max_hours_per_day' => 10,
+];
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Purpose
 
-## License
+* Acts as **fallback defaults**
+* Safe with `php artisan config:cache`
+* No frontend write access
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
+
+## 🎛 UI Features
+
+### Resource-Style Management UI
+
+* Button-triggered modal
+* Form fields for numeric input (decimal support)
+* Save & Cancel actions
+* AJAX-based updates
+* Instant reflection after reload
+
+### Validation
+
+* Numeric only
+* Decimal support (e.g., `8.5`)
+* Min / Max hour limits enforced
+
+---
+
+## 📊 Capacity & Utilization Logic
+
+* Supports decimal hour calculations
+* Handles floating-point precision safely
+* UI values are rounded for display
+* Over-allocation is clearly shown:
+
+  ```
+  Available + Over (Over)
+  ```
+
+---
+
+## 🧮 Number Handling Rules
+
+* Regex validation for numbers and decimals
+* `parseFloat()` used instead of `parseInt()`
+* `toFixed()` applied for UI display only
+* Raw values preserved for calculations
+
+---
+
+## 🎨 Asset & Cache Handling
+
+### CSS / JS Versioning
+
+* Cache busting using `SCRIPT_VERSION`
+* Prevents hard refresh issues after deployment
+* Example:
+
+```blade
+?v={{ config('constants.cache_ver') }}
+```
+
+---
+
+## 🔐 Security & Access Control
+
+* Frontend updates handled via secured routes
+* CSRF protection enabled
+* Designed for admin-only access to system settings
+
+---
+
+## 🧪 Environment Requirements
+
+* PHP 8+
+* Laravel-compatible web server (Apache / Nginx)
+* MySQL
+* Composer
+* Node.js (if asset build is used)
+
+---
+
+## 📌 Key Design Principles
+
+* Config files are **static**
+* Runtime values come from **database**
+* Frontend never modifies server files
+* Cache-safe architecture
+* Clear separation of defaults vs dynamic values
+
+---
+
+## ✅ Current Scope
+
+* Resource capacity planning
+* Dynamic working hour management
+* Clean admin UI
+* Reliable cache & precision handling
+
+---
+
+**End of README**
