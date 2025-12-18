@@ -1,0 +1,1292 @@
+:root {
+    --body-bg: #0f172a;
+    --body-text-color: #e5e7eb;
+    --card-bg: #1e293b;
+    --card-border: #334155;
+    --panel-bg: #1e293b;
+    --panel-border: #334155;
+    --accent-blue: #3b82f6;
+    --accent-purple: #8b5cf6;
+    --success-green: #10b981;
+    --warning-yellow: #f59e0b;
+    --danger-red: #ef4444;
+    --text-muted: #94a3b8;
+    --input-bg: #334155;
+    --input-border: #475569;
+    --sticky-bg: rgba(30, 41, 59, 0.95);
+    --hover-bg: #475569;
+    --glass-bg: rgba(30, 41, 59, 0.8);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, var(--body-bg) 0%, #1e293b 100%);
+    color: var(--body-text-color);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-height: 100vh;
+    padding: 1rem;
+}
+
+.main-container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.page-header {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    /* padding: 1.5rem; */
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.breadcrumb-nav {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+.breadcrumb-nav .separator {
+    margin: 0 0.5rem;
+    opacity: 0.5;
+}
+
+.filters-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    /* padding: 1.5rem; */
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.form-control, .form-select {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--body-text-color);
+    border-radius: 12px;
+    padding: 10px 10px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--input-bg);
+    border-color: var(--accent-blue);
+    color: var(--body-text-color);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.btn-primary:disabled {
+    background: #4a5568;
+    transform: none;
+    box-shadow: none;
+}
+
+.panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.panel-header {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+    /* padding: 1.5rem; */
+    padding: 1rem;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.panel-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--body-text-color);
+}
+
+.allocation-info {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin: 0.5rem 0 0 0;
+}
+
+.allocation-info.overallocated {
+    color: var(--danger-red);
+    font-weight: 600;
+}
+
+.table-container {
+    overflow-x: auto;
+    max-height: 600px;
+    border-radius: 0 0 16px 16px;
+}
+
+.allocation-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.allocation-table thead th {
+    background: var(--sticky-bg);
+    backdrop-filter: blur(10px);
+    color: var(--accent-blue);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 1rem 0.5rem;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 2px solid var(--panel-border);
+}
+
+.allocation-table thead th:first-child {
+    /* text-align: left;
+    padding-left: 1.5rem;
+    min-width: 280px;
+    z-index: 11; */
+    text-align: left;
+    /* padding-left: 1.5rem; */
+    /* min-width: 280px; */
+    z-index: 11;
+    background: var(--sticky-bg);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    left: 0;
+    /* z-index: 5; */
+    padding: 1.5rem;
+    border-right: 2px solid var(--panel-border);
+}
+
+.allocation-table tbody td {
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+    vertical-align: middle;
+}
+
+.allocation-table tbody td:first-child {
+    background: var(--sticky-bg);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    padding: 1.5rem;
+    border-right: 2px solid var(--panel-border);
+}
+
+
+
+.project-header {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.project-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--body-text-color);
+    margin: 0;
+}
+
+.tool-input {
+    width: 70px;
+    height: 36px;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 8px;
+}
+
+.btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+.btn-outline-light {
+    border-color: var(--input-border);
+    color: var(--text-muted);
+}
+
+.btn-outline-light:hover {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: white;
+}
+
+.btn-warning {
+    background-color: var(--warning-yellow);
+    border-color: var(--warning-yellow);
+}
+
+.btn-danger {
+    background-color: var(--danger-red);
+    border-color: var(--danger-red);
+}
+
+.day-input {
+    width: 60px;
+    height: 40px;
+    text-align: center;
+    font-size: 0.9rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.day-input:focus {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+.day-off {
+    background: rgba(31, 41, 55, 0.5);
+    color: var(--text-muted);
+    border: 1px dashed var(--input-border);
+    cursor: not-allowed;
+}
+
+.weekend-column {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.select2-container--default .select2-selection--multiple {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+    padding: 0.25rem;
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+    background-color: var(--accent-blue);
+    border: none;
+    border-radius: 8px;
+    color: white;
+}
+
+.select2-dropdown {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+}
+
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--accent-blue);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    body {
+        padding: 0.5rem;
+    }
+
+    .page-header {
+        padding: 1rem;
+    }
+
+    .page-title {
+        font-size: 1.2rem;
+    }
+
+    .filters-card {
+        padding: 1rem;
+    }
+
+    .panel-header {
+        padding: 1rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .allocation-table thead th:first-child {
+        min-width: 200px;
+        padding-left: 1rem;
+    }
+
+    .allocation-table tbody td:first-child {
+        padding: 1rem;
+    }
+
+    .project-tools {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .project-tools .btn {
+        flex: 1;
+        text-align: center;
+    }
+
+    .day-input {
+        width: 50px;
+        height: 36px;
+        font-size: 0.8rem;
+    }
+
+    .tool-input {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .table-container {
+        font-size: 0.85rem;
+    }
+
+    .allocation-table thead th {
+        padding: 0.75rem 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .allocation-table tbody td {
+        padding: 0.5rem 0.25rem;
+    }
+
+    .day-input {
+        width: 45px;
+        height: 32px;
+        font-size: 0.75rem;
+    }
+
+    .allocation-table thead th:first-child {
+        min-width: 180px;
+    }
+}
+
+/* Loading animation */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Status indicators */
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.status-available { background-color: var(--success-green); }
+.status-warning { background-color: var(--warning-yellow); }
+.status-overallocated { background-color: var(--danger-red); }
+
+/* Enhanced tooltips */
+.tooltip-inner {
+    background-color: var(--panel-bg);
+    color: var(--body-text-color);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+
+.select2-container--default .select2-results__option[aria-selected=true] {
+    background-color: #9e9aaf;
+}
+
+span.select2-selection__choice__remove {
+    /* margin-right: 6px; */
+    padding-right: 3px;
+}
+
+.invalid-input {
+    border: 2px solid red;
+    background-color: #ffe6e6;
+}
+
+.leave-day {
+    background-color: #ffe6e6;
+    cursor: not-allowed;
+}
+
+
+
+/* Add edit project pop up Modal Styling -------------------- */
+.custom-modal {
+    background: var(--glass-bg);
+    /* border: 1px solid var(--card-border); */
+    border-radius: 20px;
+    color: var(--body-text-color);
+    /* box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); */
+    backdrop-filter: blur(12px);
+}
+
+.custom-modal .modal-header {
+    border-bottom: 1px solid var(--panel-border);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.custom-modal .modal-title {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.custom-modal .form-control,
+.custom-modal .form-select,
+.custom-modal textarea {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--body-text-color);
+    border-radius: 12px;
+}
+
+.custom-modal .form-control:focus,
+.custom-modal .form-select:focus,
+.custom-modal textarea:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.3);
+}
+
+.form-check-input:checked {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue);
+}
+
+.btn-close-white {
+    filter: invert(1);
+}
+
+/* Select2 inside Modal */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    background-color: var(--input-bg) !important;
+    border: 1px solid var(--input-border) !important;
+    color: var(--body-text-color) !important;
+    border-radius: 12px !important;
+    min-height: 42px;
+}
+
+.select2-container--default .select2-selection__choice {
+    background-color: var(--accent-blue) !important;
+    color: white !important;
+    border-radius: 8px !important;
+    border: none !important;
+}
+
+/* Fix dropdown label and input alignment */
+.custom-modal .form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.custom-modal .form-select,
+.custom-modal .select2-container {
+    width: 100% !important;
+    display: block !important;
+}
+
+/* Add proper spacing between dropdown fields */
+.custom-modal .col-md-6 {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.custom-modal .btn-outline-secondary {
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    color: var(--body-text-color);
+    border-color: var(--input-border);
+    background: rgba(255, 255, 255, 0.05);
+    transition: 0.2s;
+}
+
+.custom-modal .btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.select2-container--default .select2-selection--single {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+    height: auto;
+    min-height: 38px;
+    padding: 6px 8px;
+}
+
+.select2-container--default .select2-selection--multiple {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+    height: auto;
+    min-height: 38px;
+    padding: 7px 8px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    top: 7px;
+    right: 5px;
+}
+
+/* Remove scroll from entire modal-body */
+.custom-modal .modal-dialog-scrollable .modal-body {
+    max-height: unset;
+    overflow: unset;
+    padding-right: 0;
+}
+
+/* Make only the form content scrollable */
+.form-scrollable {
+    max-height: 60vh; /* adjust as needed */
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 10px;
+}
+
+/* Optional: thin, smooth scrollbar for form */
+.form-scrollable {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-blue) rgba(255,255,255,0.05);
+}
+
+.form-scrollable::-webkit-scrollbar {
+    width: 6px;
+}
+
+.form-scrollable::-webkit-scrollbar-thumb {
+    background: var(--accent-blue);
+    border-radius: 10px;
+}
+
+.form-scrollable::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+}
+
+
+.modal-footer.d-flex.justify-content-end {
+    border-top: 1px solid var(--panel-border);
+}
+
+span.error {
+    color: red;
+}
+
+
+
+/* General placeholder color for all inputs and textareas */
+input::placeholder,
+textarea::placeholder {
+    color: #999 !important;
+    opacity: 1; /* Ensures consistent visibility across browsers */
+}
+
+/* For inputs and textareas without placeholder attribute (fallback color) */
+/* input,
+textarea {
+    color: #333;
+} */
+
+/* Select2 single selection placeholder color */
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #999 !important;
+}
+
+.select2-selection--multiple input.select2-search__field {
+    color: #fff;
+    width: 100% !important;
+    /* width: 316.667px !important; */
+    margin: 0% !important;
+}
+
+.select2-selection--multiple span.select2-selection__choice__remove {
+    color: #fff !important;
+}
+
+
+/* Select2 multiple selection placeholder color */
+.select2-container--default .select2-selection--multiple .select2-selection__placeholder {
+    color: #999 !important;
+}
+
+/* Optional: if you want the selected values to stay darker */
+/* .select2-container--default .select2-selection__rendered {
+    color: #333;
+} */
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #fff;
+}
+
+
+
+
+
+/* Holiday Modal Styles - Start */
+/* Holiday Modal Styles */
+.holidays-modal {
+    background: var(--glass-bg);
+    border-radius: 20px;
+    color: var(--body-text-color);
+    backdrop-filter: blur(12px);
+}
+
+.holidays-modal .modal-content {
+    background: transparent;
+    border: none;
+}
+
+.holidays-modal .modal-header {
+    border-bottom: 1px solid var(--panel-border);
+    background: rgba(59, 130, 246, 0.1);
+    border-radius: 20px 20px 0 0;
+}
+
+.holidays-modal .modal-title {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 600;
+}
+
+.holidays-modal .modal-footer {
+    border-top: 1px solid var(--panel-border);
+    background: rgba(30, 41, 59, 0.5);
+    border-radius: 0 0 20px 20px;
+}
+
+.holidays-form-control {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--body-text-color);
+    border-radius: 12px;
+    padding: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.holidays-form-control:focus {
+    background-color: var(--input-bg);
+    border-color: var(--accent-blue);
+    color: var(--body-text-color);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+    outline: none;
+}
+
+.holidays-form-control::placeholder {
+    color: #999 !important;
+    opacity: 1;
+}
+
+.holidays-label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--body-text-color);
+}
+
+.holidays-list-container {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    background: var(--input-bg);
+    padding: 0.5rem;
+}
+
+.holidays-list-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.holidays-list-container::-webkit-scrollbar-thumb {
+    background: var(--accent-blue);
+    border-radius: 10px;
+}
+
+.holidays-list-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.holidays-item {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.holidays-item:hover {
+    background: var(--hover-bg);
+    transform: translateX(5px);
+}
+
+.holidays-item-info {
+    flex: 1;
+}
+
+.holidays-item-date {
+    font-weight: 600;
+    color: var(--accent-blue);
+    font-size: 0.9rem;
+}
+
+.holidays-item-desc {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+.holidays-item-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* .holidays-btn-edit,
+.holidays-btn-delete {
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.holidays-btn-edit {
+    background-color: var(--warning-yellow);
+    color: white;
+}
+
+.holidays-btn-edit:hover {
+    background-color: #d97706;
+    transform: scale(1.05);
+} */
+
+/* .holidays-btn-delete {
+    background-color: var(--danger-red);
+    color: white;
+}
+
+.holidays-btn-delete:hover {
+    background-color: #dc2626;
+    transform: scale(1.05);
+} */
+
+/* .holidays-empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+} */
+
+.holidays-divider {
+    border: none;
+    height: 1px;
+    background: var(--panel-border);
+    margin: 1.5rem 0;
+}
+
+.btn-outline-secondary {
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    color: var(--body-text-color);
+    border-color: var(--input-border);
+    background: rgba(255, 255, 255, 0.05);
+    transition: 0.2s;
+}
+
+.btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}
+
+.btn-close-white {
+    filter: invert(1);
+}
+
+.holidays-error {
+    color: var(--danger-red);
+    font-size: 14px;
+    margin-top: 0.25rem;
+    display: none;
+}
+
+.error {
+    font-size: 14px;
+    margin-top: 4px;
+    display: block;
+}
+
+.holidays-item.fade-in {
+    animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.holidays-empty-state {
+    text-align: center;
+    color: #777;
+    padding: 1rem;
+    font-style: italic;
+}
+
+
+.day-input.holiday-day {
+    background-color: #ffe6e6; /* light red */
+    cursor: not-allowed;
+}
+
+
+/* Holiday Modal Styles - End */
+
+/* Color seperated */
+
+input.form-control.day-input.day-off {
+    background: #495057;
+    color: #495057;
+    border: 1px dashed var(--input-border);
+    cursor: not-allowed;
+}
+
+input.form-control.day-input.holiday-day {
+    background-color: #5a3ec1;
+    color: #5a3ec1;
+    border: 1px dashed var(--input-border);
+    cursor: not-allowed;
+}
+
+input.form-control.day-input {
+    color: #000;
+    background: #fff;
+}
+
+input.form-control.tool-input.apply-all-input {
+    color: #000;
+    background: #fff;
+}
+
+input.form-control.day-input.leave-day {
+    background: #af3838;
+    color: #af3838;
+}
+
+.text-center.text-muted.py-5 {
+    color: #fff !important;
+}
+
+
+/* ---- Base Back Button ---- */
+.back-btn-style {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 18px;
+    text-decoration: none;
+    transition: all 0.25s ease-in-out;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ---- Light Background Mode ---- */
+.back-btn-style.light {
+    background-color: #1c2738;
+    color: #ffffff;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    margin-right: 20px;
+}
+
+.back-btn-style.light:hover {
+    background-color: #007bff;
+    color: #fff;
+    border-color: #007bff;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+    transform: translateX(-2px);
+}
+
+/* ---- Dark Background Mode ---- */
+.back-btn-style.dark {
+    background-color: #1e1e1e;
+    color: #f8f9fa;
+    border: 1px solid #333;
+    box-shadow: 0 1px 3px rgba(255, 255, 255, 0.05);
+}
+
+.back-btn-style.dark:hover {
+    background-color: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+    box-shadow: 0 0 10px rgba(13, 110, 253, 0.4);
+    transform: translateX(-2px);
+}
+
+/* ---- Optional Glow (for both modes) ---- */
+.back-btn-style::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+.back-btn-style:hover::after {
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(13, 110, 253, 0.5);
+}
+
+/* ---- Icon size ---- */
+.back-btn-style i {
+    font-size: 17px;
+}
+
+/* Button Style ------------------------ */
+/* .project-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+} */
+/* Button Style ------------------------ */
+
+/* Button Style ------------------------ */
+ .project-tools {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.project-tools .tool-input {
+    width: 60px;
+    height: 36px;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 8px;
+}
+
+.project-tools .btn {
+    white-space: nowrap;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+}
+/* Button Style ------------------------ */
+
+
+
+/* Resource Management Modal Styles - Start */
+/* Modal wrapper */
+.manage-resource-modal {
+    background: var(--glass-bg);
+    border-radius: 20px;
+    color: var(--body-text-color);
+    backdrop-filter: blur(12px);
+}
+
+/* Header */
+.manage-resource-modal .modal-header {
+    border-bottom: 1px solid var(--panel-border);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.manage-resource-modal .modal-title {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Inputs */
+.manage-resource-modal .form-control,
+.manage-resource-modal .form-select,
+.manage-resource-modal textarea {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--body-text-color);
+    border-radius: 12px;
+}
+
+.manage-resource-modal .form-control:focus,
+.manage-resource-modal .form-select:focus,
+.manage-resource-modal textarea:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 0.2rem rgba(59,130,246,0.3);
+}
+
+/* Select2 */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-selection--multiple {
+    background-color: var(--input-bg) !important;
+    border: 1px solid var(--input-border) !important;
+    color: var(--body-text-color) !important;
+    border-radius: 12px !important;
+    min-height: 42px;
+}
+
+/* Scroll area */
+.manage-resource-scroll {
+    max-height: 60vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 10px;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-blue) rgba(255,255,255,0.05);
+}
+
+.manage-resource-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+.manage-resource-scroll::-webkit-scrollbar-thumb {
+    background: var(--accent-blue);
+    border-radius: 10px;
+}
+.manage-resource-scroll::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+}
+
+/* Footer */
+.manage-resource-modal .modal-footer {
+    border-top: 1px solid var(--panel-border);
+}
+
+/* Switch */
+.form-check-input:checked {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue);
+}
+
+/* Placeholder */
+input::placeholder,
+textarea::placeholder {
+    color: #999 !important;
+}
+
+/* Labels */
+.manage-resource-modal .form-label {
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+/* Resource Management Modal Styles - End */
+
+
+
+/* Make date & select look same as holiday inputs */
+.holidays-form-control,
+.holidays-form-control[type="date"],
+.holidays-form-control select {
+    width: 100%;
+    height: 44px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+}
+
+.holidays-form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 0.2rem rgba(59,130,246,0.25);
+}
+
+textarea.holidays-form-control {
+    height: auto;
+    resize: none;
+}
+
+
+/* Flatpickr Dark UI Fix */
+.flatpickr-calendar {
+    background: #0f172a; /* slate-900 */
+    border: 1px solid #334155;
+    border-radius: 12px;
+    color: #e5e7eb;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6);
+    z-index: 1065 !important; /* Bootstrap modal fix */
+}
+
+.flatpickr-months {
+    background: #020617;
+    border-bottom: 1px solid #334155;
+    padding: 8px 0;
+}
+
+.flatpickr-current-month {
+    color: #e5e7eb;
+}
+
+.flatpickr-monthDropdown-months {
+    background-color: #020617 !important;
+    color: #e5e7eb !important;
+    border: none;
+}
+
+.flatpickr-current-month input.cur-year {
+    background: transparent !important;
+    color: #e5e7eb !important;
+    border: none;
+    font-weight: 600;
+}
+
+.flatpickr-monthDropdown-months option {
+    background-color: #020617 !important;
+    color: #e5e7eb !important;
+}
+
+/* Hovered option */
+.flatpickr-monthDropdown-months option:hover {
+    background-color: #1e3a8a !important;
+    color: #ffffff !important;
+}
+
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+    padding: 8px;
+}
+
+.flatpickr-months .flatpickr-prev-month svg,
+.flatpickr-months .flatpickr-next-month svg {
+    fill: #3b82f6;
+    width: 14px;
+    height: 14px;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg {
+    fill: #60a5fa;
+}
+
+.flatpickr-weekdays {
+    background: #020617;
+    border-bottom: 1px solid #334155;
+}
+
+span.flatpickr-weekday {
+    color: #60a5fa;
+    font-weight: 600;
+}
+
+.flatpickr-day {
+    color: #e5e7eb;
+    border-radius: 8px;
+}
+
+.flatpickr-day:hover {
+    background: #1e3a8a;
+    border-color: #1e3a8a;
+}
+
+.flatpickr-day.today {
+    border: 1px solid #3b82f6;
+}
+
+.flatpickr-day.selected,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+
+.flatpickr-day.inRange {
+    background: rgba(59, 130, 246, 0.35);
+    border-color: rgba(59, 130, 246, 0.35);
+}
+
+.flatpickr-day.disabled,
+.flatpickr-day.flatpickr-disabled {
+    color: #64748b !important;
+    cursor: not-allowed;
+    background: transparent !important;
+}
+
+.flatpickr-time {
+    background: #020617;
+    border-top: 1px solid #334155;
+}
+
+.flatpickr-time input {
+    background: transparent;
+    color: #e5e7eb;
+}
+
+/* Year arrows */
+
+.flatpickr-current-month .numInputWrapper span.arrowUp:after {
+    border-bottom-color: #3b82f6 !important;
+}
+
+.flatpickr-current-month .numInputWrapper span.arrowDown:after {
+    border-top-color: #3b82f6 !important;
+}
+
+input#leaveDaysText {
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+/* ======================================== */
+
+/* Capacity Dashboard CSS */
+input.form-control.day-input.half-leave-day {
+    background-color: #f59999;
+    color: #000;
+    pointer-events: auto;
+}

@@ -1,0 +1,774 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #f5f7fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 15px;
+}
+
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.dashboard-header {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.main-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 0px;
+    text-align: center;
+}
+
+.month-selector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.selector-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.selector-label {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.95rem;
+}
+
+.month-select, .year-select {
+    padding: 8px 15px;
+    border: 2px solid #e1e8ed;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #495057;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 130px;
+}
+
+.month-select:focus, .year-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-generate {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    border: none;
+    padding: 9px 24px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 3px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-generate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 18px rgba(102, 126, 234, 0.4);
+}
+
+.chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    height: 100%;
+    transition: all 0.2s ease;
+}
+
+.chart-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+.chart-header {
+    text-align: center;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f1f3f4;
+}
+
+.chart-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 3px;
+}
+
+.chart-subtitle {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.chart-container {
+    position: relative;
+    height: 280px;
+}
+
+.full-width-chart {
+    height: 340px;
+}
+
+.stats-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 12px;
+    text-align: center;
+}
+
+.stats-item {
+    display: inline-block;
+    margin: 0 12px;
+}
+
+.stats-value {
+    /* font-size: 1.2rem; */
+    font-size: 14px;
+    font-weight: 700;
+    display: block;
+}
+
+.stats-label {
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+
+.table-section {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-top: 20px;
+}
+
+.table-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f1f3f4;
+}
+
+.resource-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.9rem;
+}
+
+.resource-table thead th {
+    padding: 12px 10px;
+    background: #f8f9fa;
+    text-align: left;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 2px solid #e9ecef;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.resource-table thead th:first-child {
+    border-top-left-radius: 8px;
+}
+
+.resource-table thead th:last-child {
+    border-top-right-radius: 8px;
+}
+
+.resource-table tbody tr {
+    transition: all 0.15s ease;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.resource-table tbody tr:hover {
+    background: #f8f9ff;
+}
+
+.resource-table tbody td {
+    padding: 11px 10px;
+    color: #495057;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-width: 55px;
+    text-align: center;
+}
+
+.status-over {
+    background: #ffe5e5;
+    color: #dc3545;
+}
+
+.status-ok {
+    background: #d4edda;
+    color: #28a745;
+}
+
+.status-under {
+    background: #fff3cd;
+    color: #ffc107;
+}
+
+.row {
+    margin-bottom: 20px;
+}
+
+.g-3 {
+    gap: 15px;
+}
+
+@media (max-width: 1200px) {
+    .chart-container {
+        height: 260px;
+    }
+    .full-width-chart {
+        height: 320px;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .main-title {
+        font-size: 1.5rem;
+        margin-bottom: 12px;
+    }
+
+    .dashboard-header {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .month-selector {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .selector-group {
+        width: 100%;
+    }
+
+    .month-select, .year-select {
+        width: 100%;
+    }
+
+    .btn-generate {
+        width: 100%;
+    }
+
+    .chart-card {
+        padding: 15px;
+    }
+
+    .chart-container {
+        height: 240px;
+    }
+
+    .full-width-chart {
+        height: 280px;
+    }
+
+    .stats-item {
+        display: block;
+        margin: 8px 0;
+    }
+
+    .table-section {
+        padding: 15px;
+    }
+
+    .resource-table {
+        font-size: 0.8rem;
+    }
+
+    .resource-table thead th,
+    .resource-table tbody td {
+        padding: 8px 6px;
+    }
+}
+
+@media (max-width: 576px) {
+    .chart-container {
+        height: 220px;
+    }
+
+    .full-width-chart {
+        height: 260px;
+    }
+}
+
+/* input.month-input-style {
+    width: 235px;
+}
+ */
+
+/* for Sticky Table Header + Scroll */
+.scrollable-table {
+    /* max-height: 450px; 
+    overflow-y: auto;
+    border: 1px solid #e9ecef;
+    border-radius: 8px; */
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative; /* IMPORTANT */
+}
+
+/* Sticky header */
+.scrollable-table table thead th {
+    backdrop-filter: blur(100px);
+    color: #ffffff;
+    position: sticky;
+    top: 0;
+    background-color: #6e66c9e0; /* light gray background to stand out */
+    z-index: 5;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.scrollable-table table tbody td {
+    position: relative;
+    z-index: 1;
+}
+
+/* Optional: smooth scrollbar */
+.scrollable-table::-webkit-scrollbar {
+    width: 3px;
+}
+.scrollable-table::-webkit-scrollbar-thumb {
+    background: #cfd4da;
+    border-radius: 4px;
+}
+.scrollable-table::-webkit-scrollbar-thumb:hover {
+    background: #adb5bd;
+}
+
+
+/* Scale down the entire Flatpickr calendar */
+.flatpickr-calendar {
+    transform: scale(0.85);   /* 85% of original size */
+    transform-origin: top left; /* Keep it aligned properly */
+    font-size: 16px;           /* Adjust text size for readability */
+}
+
+/* Optional: adjust input box height if needed */
+#dateRangePicker {
+    height: 35px;
+    font-size: 16px;
+}
+
+
+
+
+
+input#monthSelectForCharts {
+    width: 28%;
+}
+
+/* ---- Base Back Button ---- */
+.back-btn-style {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 18px;
+    text-decoration: none;
+    transition: all 0.25s ease-in-out;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ---- Light Background Mode ---- */
+.back-btn-style.light {
+    background-color: #f3f4f6;
+    color: #222;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.back-btn-style.light:hover {
+    background-color: #007bff;
+    color: #fff;
+    border-color: #007bff;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.3);
+    transform: translateX(-2px);
+}
+
+/* ---- Dark Background Mode ---- */
+.back-btn-style.dark {
+    background-color: #1e1e1e;
+    color: #f8f9fa;
+    border: 1px solid #333;
+    box-shadow: 0 1px 3px rgba(255, 255, 255, 0.05);
+}
+
+.back-btn-style.dark:hover {
+    background-color: #0d6efd;
+    color: #fff;
+    border-color: #0d6efd;
+    box-shadow: 0 0 10px rgba(13, 110, 253, 0.4);
+    transform: translateX(-2px);
+}
+
+/* ---- Optional Glow (for both modes) ---- */
+.back-btn-style::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+.back-btn-style:hover::after {
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(13, 110, 253, 0.5);
+}
+
+/* ---- Icon size ---- */
+.back-btn-style i {
+    font-size: 17px;
+}
+
+
+/* ===========================
+   Capacity Dashboard CSS TABLE SECTIONS & CONTAINERS
+   =========================== */
+
+/* DASHBOARD-ALIGNED COLOR SYSTEM (STRICT) */
+:root {
+    --primary: #6f73ff;
+    --primary-soft: #eef0ff;
+
+    --bg-page: #f5f7fb;
+    --bg-card: #ffffff;
+    --bg-subtle: #f9fafb;
+
+    --border-soft: #e6e9f0;
+    --border-lighter: #f0f2f7;
+
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+
+    --radius-lg: 16px;
+    --radius-md: 12px;
+}
+
+/* MAIN TABLE CARD (IDENTICAL TO GRAPH CARDS) */
+.table-section {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: 0 8px 24px rgba(17, 24, 39, 0.06);
+    border: 1px solid var(--border-soft);
+}
+
+/* SECTION TITLE (CLEAN & QUIET) */
+.table-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.table-title::before {
+    content: '';
+    width: 4px;
+    height: 22px;
+    border-radius: 4px;
+    background: var(--primary);
+}
+
+/* SEARCH INPUT (UX-SAFE) */
+.table-search .form-control {
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    padding: 12px 16px 12px 42px;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.table-search .form-control:focus {
+    background: #ffffff;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(111, 115, 255, 0.15);
+}
+
+
+/* TABLE HEADER (NO GRADIENT — UX FIX) */
+.resource-table thead {
+    background: #f3f5ff;
+}
+
+.resource-table thead th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #4f46e5;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+
+/* TABLE ROWS (READABILITY FIRST) */
+.resource-table tbody tr {
+    border-bottom: 1px solid var(--border-lighter);
+}
+
+.resource-table tbody tr:hover {
+    background: var(--primary-soft);
+}
+
+.resource-table tbody td {
+    background: #7f78d04d;
+    padding: 14px 16px;
+    font-size: 0.88rem;
+    color: var(--text-primary);
+}
+
+/* EXPAND ICON (FIXED UX) */
+.toggle-icon {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: #eef0ff;
+    color: var(--primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.project-row:hover .toggle-icon {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+
+/* STATUS BADGES (DATA FIRST) */
+.status-badge {
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.status-ok {
+    background: #ecfdf5;
+    color: var(--success);
+}
+
+.status-under {
+    background: #fffbeb;
+    color: var(--warning);
+}
+
+.status-over {
+    background: #fef2f2;
+    color: var(--danger);
+}
+
+
+/* NESTED TABLE (BIGGEST FIX) */
+.resource-details-row {
+    background: #fafbff;
+}
+
+.nested-table {
+    /* margin: 12px 40px; */
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    box-shadow: none;
+    background: #ffffff;
+}
+
+/* Nested Table Header (Quiet) */
+.nested-table thead {
+    background: #f9fafb;
+}
+
+.nested-table th {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+
+/* Nested Table Rows */
+.nested-table tbody td {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    padding: 10px 12px;
+}
+
+.nested-table tbody tr:hover {
+    background: #f3f4f6;
+}
+
+/* EXPAND ANIMATION (SUBTLE) */
+.resource-details-row:not(.d-none) {
+    animation: fadeSlide 0.2s ease;
+}
+
+@keyframes fadeSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* ============= */
+.quick-range-select {
+    max-width: 160px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    border: 1px solid var(--border-soft);
+    background-color: #f9fafb;
+}
+
+
+
+
+
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+
+/* Filter Group (This is key) */
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px;
+    background: #f8f9fb;
+    border: 1px solid #e6e9f0;
+    border-radius: 12px;
+}
+
+/* Unified Input Styling (No Bootstrap Feel) */
+
+.filter-control {
+    height: 36px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    border: 1px solid #dfe3eb;
+    background: #ffffff;
+    color: #495057;
+    min-width: 130px;
+}
+
+.filter-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+}
+
+.range-input {
+    min-width: 200px;
+}
+
+/* Generate Button (Primary CTA) */
+
+.btn-generate {
+    height: 38px;
+    padding: 0 22px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+/* RESPONSIVE UX (Important) */
+
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .header-left {
+        justify-content: center;
+    }
+
+    .header-right {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .filter-control,
+    .btn-generate {
+        width: 100%;
+    }
+}
