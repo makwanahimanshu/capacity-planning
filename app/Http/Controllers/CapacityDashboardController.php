@@ -115,25 +115,66 @@ class CapacityDashboardController extends Controller
                 })
                 ->get();
 
-            $leaveDates = [];
+            // $leaveDates = [];
+            // foreach ($leaves as $leave) {
+            //     $periodLeave = CarbonPeriod::create($leave->start_date, $leave->end_date);
+            //     foreach ($periodLeave as $day) {
+            //         $leaveDates[] = $day->toDateString();
+            //     }
+            // }
+            /**
+             * Build: date => leave_hours
+             * Supports half-day & multi-day leaves
+             */
+            $leaveHoursByDate = [];
+
             foreach ($leaves as $leave) {
-                $periodLeave = CarbonPeriod::create($leave->start_date, $leave->end_date);
-                foreach ($periodLeave as $day) {
-                    $leaveDates[] = $day->toDateString();
+                $period = CarbonPeriod::create($leave->start_date, $leave->end_date);
+                $perDayLeaveHours = $leave->hours_impacted / max(1, $leave->number_of_days);
+
+                foreach ($period as $day) {
+                    $dateStr = $day->toDateString();
+                    $leaveHoursByDate[$dateStr] = ($leaveHoursByDate[$dateStr] ?? 0) + $perDayLeaveHours;
                 }
             }
 
             // --- Calculate actual working days excluding weekends, holidays, and leaves ---
-            $workingDaysDates = $workingDaysDatesTotal = [];
+            // $workingDaysDates = $workingDaysDatesTotal = [];
+            // $period = CarbonPeriod::create($start, $end);
+            // foreach ($period as $date) {
+            //     $dateStr = $date->toDateString();
+            //     if (!$date->isWeekend() && !in_array($dateStr, $holidays) && !in_array($dateStr, $leaveDates)) {
+            //         $workingDaysDates[] = $dateStr;
+            //     }
+            //     if (!$date->isWeekend()) {
+            //         $workingDaysDatesTotal[] = $dateStr;
+            //     }
+            // }
+            $workingDaysDatesTotal = [];
+            $totalAvailableHours = 0;
+
             $period = CarbonPeriod::create($start, $end);
             foreach ($period as $date) {
+
                 $dateStr = $date->toDateString();
-                if (!$date->isWeekend() && !in_array($dateStr, $holidays) && !in_array($dateStr, $leaveDates)) {
-                    $workingDaysDates[] = $dateStr;
+
+                // Skip weekends
+                if ($date->isWeekend()) {
+                    continue;
                 }
-                if (!$date->isWeekend()) {
-                    $workingDaysDatesTotal[] = $dateStr;
+
+                $workingDaysDatesTotal[] = $dateStr;
+
+                // Skip holidays
+                if (in_array($dateStr, $holidays)) {
+                    continue;
                 }
+
+                // Reduce only leave hours (not full day)
+                $leaveHours = $leaveHoursByDate[$dateStr] ?? 0;
+
+                $availableForDay = max(0, $dailyCapacity - $leaveHours);
+                $totalAvailableHours += $availableForDay;
             }
 
             // --- Calculate holiday hours ---
@@ -149,8 +190,9 @@ class CapacityDashboardController extends Controller
             }
 
             // --- Calculate total hours ---
-            $totalHours = count($workingDaysDates) * $dailyCapacity;
-            $totalHoursIncludingHolidays = count($workingDaysDatesTotal) * $dailyCapacity;
+            $totalHours = count($workingDaysDatesTotal) * $dailyCapacity;
+            // $totalHoursIncludingHolidays = count($workingDaysDatesTotal) * $dailyCapacity;
+            $totalHoursSum += $totalHours;
 
             // --- Calculate allocated hours ---
             $allocatedHours = 0;
@@ -167,17 +209,17 @@ class CapacityDashboardController extends Controller
                     $dailyData = json_decode($alloc->daily_hours, true) ?? [];
                     foreach ($dailyData as $day) {
                         $dayDate = Carbon::parse($day['date']);
-                        if (in_array($dayDate->toDateString(), $workingDaysDates)) {
+                        if (in_array($dayDate->toDateString(), $workingDaysDatesTotal)) {
                             $allocatedHours += $day['hours'];
                         }
                     }
                 }
             }
 
-            $availableHours = max(0, $totalHours - $allocatedHours);
+            $availableHours = max(0, $totalAvailableHours - $allocatedHours);
 
-            $utilizationPercent = $totalHours > 0
-                ? round(($allocatedHours / $totalHours) * 100, 1)
+            $utilizationPercent = $totalAvailableHours > 0
+                ? round(($allocatedHours / $totalAvailableHours) * 100, 1)
                 : 0;
 
             $department = DB::table('departments')
@@ -189,13 +231,13 @@ class CapacityDashboardController extends Controller
                 'id'              => $res->id,
                 'name'            => $res->name,
                 'department'      => $department,
-                'total_hours'     => $totalHoursIncludingHolidays,
+                'total_hours'     => $totalHours,
                 'holiday_hours'   => $holiday_hours,
                 'allocated_hours' => $allocatedHours,
                 'available_hours' => $availableHours,
                 'leave_hours'     => array_sum(array_column($leaves->toArray(), 'hours_impacted')),
                 'utilization'     => $utilizationPercent,
-                'working_days'    => count($workingDaysDates),
+                'working_days'    => count($workingDaysDatesTotal),
             ];
 
             $totalNetAvailable += $availableHours;

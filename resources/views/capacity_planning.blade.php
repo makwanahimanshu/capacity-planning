@@ -1,4 +1,11 @@
-{{-- @extends('layouts.app') --}}
+{{-- 
+    Capacity Planning view (Blade template)
+    - Extends header-style layout
+    - Renders resource / month / project filters
+    - Builds per-resource allocation panels with daily inputs
+    - Includes modals for managing projects, holidays, resources, and leaves
+    - Inline JS handles UI logic, AJAX calls and validation
+--}}
 @extends('layouts.header-style')
 
 @section('title', 'Capacity Planning – Resource Allocation')
@@ -8,6 +15,20 @@
 @endsection
 
 @section('content')
+
+    <!-- Loader -->
+    <div id="chartsLoaderOverlay" aria-hidden="true" style="display:none;">
+        <div class="loader-backdrop"></div>
+
+        <div id="chartsLoader" class="loader-spinner">
+            <div class="loader" role="status" aria-hidden="true"></div>
+            <p class="visually-hidden" aria-live="polite">
+                Loading, please wait…
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
     <div class="main-container">
         <div class="page-header">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -26,24 +47,22 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- Action buttons: open modals and trigger saves --}}
                 <div>
                     <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#manageResourceModal">
-                        {{-- <i class="fas fa-people-group me-2"></i>Manage Resource --}}
                         <i class="fas fa-people-group me-2"></i>Resource
                     </button>
                     <button id="addEditProjectBtn" class="btn btn-primary me-2">
-                        {{-- <i class="fas fa-briefcase me-2"></i>Add/Edit Project --}}
                         <i class="fas fa-briefcase me-2"></i>Project
                     </button>
                     <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#manageLeaveModal">
                         <i class="fas fa-user-clock me-2"></i>Leave
                     </button>
                     <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#holidayModal">
-                        {{-- <i class="fas fa-calendar-day me-2"></i>Manage Holiday --}}
                         <i class="fas fa-calendar-day me-2"></i>Holiday
                     </button>
                     <button id="saveAllBtn" class="btn btn-primary" disabled>
-                        {{-- <i class="fas fa-save me-2"></i>Save All Allocations --}}
                         <i class="fas fa-save me-2"></i>Save All Allocations
                     </button>
                 </div>
@@ -53,6 +72,7 @@
         <!-- Filters -->
         <div class="filters-card">
             <div class="row g-3">
+                {{-- Resource multi-select --}}
                 <div class="col-lg-5 col-md-8">
                     <label for="resourceSelect" class="form-label fw-semibold">
                         <i class="fas fa-users me-2"></i>Select Resources
@@ -65,12 +85,16 @@
                         <option value="emma">Emma Williams</option>
                     </select>
                 </div>
+
+                {{-- Month picker --}}
                 <div class="col-lg-2 col-md-4">
                     <label for="monthSelect" class="form-label fw-semibold">
                         <i class="fas fa-calendar me-2"></i>Month
                     </label>
                     <input type="month" id="monthSelect" class="form-control">
                 </div>
+
+                {{-- Project filter (select2) --}}
                 <div class="col-lg-2 col-md-4">
                     <label for="projectFilter" class="form-label fw-semibold">
                         <i class="fas fa-store me-2"></i>Project
@@ -87,6 +111,8 @@
                         @endforeach
                     </select>
                 </div>
+
+                {{-- Monthly capacity summary (calculated client-side) --}}
                 <div class="col-lg-3 col-md-4">
                     <label class="form-label fw-semibold">
                         <i class="fas fa-clock me-2"></i>Monthly Capacity
@@ -96,7 +122,7 @@
             </div>
         </div>
 
-        <!-- Panels Container -->
+        <!-- Panels Container: per-resource allocation panels are inserted here -->
         <div id="panelsContainer"></div>
     </div>
 
@@ -120,7 +146,18 @@
 
 @section('scripts')
 <script>
+/*
+    Client-side script for Capacity Planning view.
+    - Sets up AJAX CSRF header
+    - Initializes UI (select2, date inputs)
+    - Loads resources, holidays, leaves and assignments via AJAX
+    - Builds allocation grids per resource & project
+    - Validates inputs and sends save/delete requests
+*/
 
+/* ---------------------------------------------------------------------
+   Global AJAX setup for CSRF (Laravel)
+   --------------------------------------------------------------------- */
 $.ajaxSetup({
     headers: {
         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
@@ -128,10 +165,30 @@ $.ajaxSetup({
 });
 
 $(function () {
+    // Single loader pair for all AJAX/fetch usage in this file.
+    function showLoader() {
+        $('#chartsLoaderOverlay')
+            .stop(true, true)
+            .fadeIn(150)
+            .attr('aria-hidden', 'false');
+    }
 
+    function hideLoader() {
+        $('#chartsLoaderOverlay')
+            .stop(true, true)
+            .fadeOut(150)
+            .attr('aria-hidden', 'true');
+    }
+
+    /* -------------------------
+       Configuration constants
+       ------------------------- */
     const HOURS_PER_DAY = {{ config('constants.daily_working_hours') }};
     const MAX_HOURS_PER_DAY = {{ config('constants.max_hours_per_day') }};
 
+    /* -------------------------
+       State variables / cached jQuery objects
+       ------------------------- */
     let holidays = []; //
     let $resourceSelect = $('#resourceSelect');
     let $monthSelect = $('#monthSelect');
@@ -139,19 +196,22 @@ $(function () {
     let $saveAllBtn = $('#saveAllBtn');
     let $monthlyCapacityHours = $('#monthlyCapacityHours');
     let MAX_HOURS_MONTH = getMaxHoursMonth($('#monthSelect').val() || new Date().toISOString().slice(0,7));
-
     let $projectFilter = $('#projectFilter');
 
-    // Initialize Select2 for project filter
+    // resourceMeta stores computed metadata for each resource (leaves, working days, etc.)
+    let resourceMeta = {}; // { resourceId: { leaveHours, leaveDays, workingDays, leaveDates, ... } }
+
+    /* -------------------------
+       Initialize UI widgets
+       ------------------------- */
+    // Initialize select2 for project filter
     $projectFilter.select2({
         placeholder: "Select project",
         allowClear: true,
         width: '100%'
     });
 
-    // Trigger renderPanels when project changes
-    // $projectFilter.on('change', debounce(renderPanels, 300));
-
+    // Project filter change: load project-specific resources or all resources
     $projectFilter.on('change', debounce(function() {
         let projectId = $projectFilter.val() || '';
 
@@ -179,8 +239,6 @@ $(function () {
         }
     }, 300));
 
-
-
     /* Inside set placeholder in search dropdown select2 */
     $('#projectFilter').on('select2:open', function () {
         // Find the search input inside the dropdown
@@ -188,15 +246,16 @@ $(function () {
         searchBox.attr('placeholder', 'Select project');
     });
 
-    // Store resource-specific data
-    let resourceMeta = {}; // { resourceId: { leaveHours, leaveDays, workingDays } }
-
     $monthSelect.on('change', function() {
         // MAX_HOURS_MONTH = getMaxHoursMonth($(this).val());
         MAX_HOURS_MONTH = workingDaysInMonth($(this).val()) * HOURS_PER_DAY;
         renderPanels();
     });
 
+    /* -------------------------
+       Helper functions: dates & working days
+       ------------------------- */
+    // Return number of weekdays in the given YYYY-MM string
     function workingDaysInMonth(yyyyMM) {
         let [year, month] = yyyyMM.split('-').map(Number);
         let totalDays = new Date(year, month, 0).getDate();
@@ -208,18 +267,54 @@ $(function () {
         return workingDays;
     }
 
+    // Compute maximum available working hours in month (weekdays * hours/day)
     function getMaxHoursMonth(yyyyMM) {
         return workingDaysInMonth(yyyyMM) * HOURS_PER_DAY;
     }
 
+    // Number of days in a month (calendar days)
+    function daysInMonth(yyyyMM) {
+        let [y,m] = yyyyMM.split('-').map(Number);
+        return new Date(y,m,0).getDate();
+    }
+
+    // Helper: is weekend for a given date parts
+    function isWeekend(y,m,d){ let dow = new Date(y,m-1,d).getDay(); return dow===0||dow===6; }
+
+    /* -------------------------
+       AJAX loaders
+       ------------------------- */
+    // Load resources (optionally filtered by project)
+    // function loadResources(callback) {
+    //     let projectId = $projectFilter.val() || '';
+    //     $.get("{{ route('capacity-planning.resources') }}", { project_id: projectId }, function(data) {
+    //         $resourceSelect.empty();
+    //         data.forEach(r => $resourceSelect.append(`<option value="${r.id}">${r.name}</option>`));
+    //         initSelect2();
+    //         if(callback) callback();
+    //     });
+    // }
+
+    // Load resources (optionally filtered by project)
     function loadResources(callback) {
+        console.log("loadResouces called");
         let projectId = $projectFilter.val() || '';
-        $.get("{{ route('capacity-planning.resources') }}", { project_id: projectId }, function(data) {
-            $resourceSelect.empty();
-            data.forEach(r => $resourceSelect.append(`<option value="${r.id}">${r.name}</option>`));
-            initSelect2();
-            if(callback) callback();
-        });
+        console.log("projectId", projectId);
+
+        showLoader();
+        $.get("{{ route('capacity-planning.resources') }}", { project_id: projectId })
+            .done(function(data) {
+                $resourceSelect.empty();
+                data.forEach(r => $resourceSelect.append(`<option value="${r.id}">${r.name}</option>`));
+                initSelect2();
+                if (callback) callback();
+            })
+            .fail(function() {
+                showNotification('Failed to load resources', 'danger');
+            })
+            .always(function() {
+                hideLoader();
+            });
     }
 
     function loadAssignments(resourceId, month, callback) {
@@ -231,12 +326,16 @@ $(function () {
         });
     }
 
+    /* -------------------------
+       Initialization helpers
+       ------------------------- */
     function initMonth() {
         let d = new Date();
         let m = String(d.getMonth()+1).padStart(2,'0');
         $monthSelect.val(`${d.getFullYear()}-${m}`);
     }
 
+    // Initialize or re-init Select2 on resource select
     function initSelect2() {
         if ($resourceSelect.hasClass("select2-hidden-accessible")) {
             $resourceSelect.select2('destroy'); // destroy previous instance
@@ -249,12 +348,14 @@ $(function () {
         });
     }
 
-
+    /* -------------------------
+       Input validation helpers
+       ------------------------- */
+    // Check if any day-input in a table exceeds MAX_HOURS_PER_DAY
     function hasInvalidInputs($table) {
         let invalid = false;
         $table.find('.day-input').each(function() {
             let num = parseFloat($(this).val());
-            console.log("MAX_HOURS_PER_DAY11", MAX_HOURS_PER_DAY);
             if (num > MAX_HOURS_PER_DAY) {
                 invalid = true;
                 return false;
@@ -263,15 +364,20 @@ $(function () {
         return invalid;
     }
 
-    
+    /* -------------------------
+       Event bindings
+       ------------------------- */
     function bindEvents() {
+        // Re-render panels when resources or month changes
         $resourceSelect.on('change', debounce(renderPanels, 300));
         $monthSelect.on('change', debounce(renderPanels, 300));
 
+        // Save all allocations for selected resources
         $saveAllBtn.on('click', function() {
             let selectedResources = $resourceSelect.val() || [];
             if (selectedResources.length === 0) return;
 
+            // Validate per-resource tables first
             for (let resourceId of selectedResources) {
                 let $table = $(`.allocation-table[data-resource="${resourceId}"]`);
                 if (hasInvalidInputs($table)) {
@@ -280,6 +386,7 @@ $(function () {
                 }
             }
 
+            // Build mega payload for server
             let megaData = [];
             selectedResources.forEach(resourceId => {
                 let $table = $(`.allocation-table[data-resource="${resourceId}"]`);
@@ -311,10 +418,14 @@ $(function () {
 
             $(this).addClass('loading');
 
+            // Send mega-bulk save request
             $.ajax({
                 url: "{{ route('capacity-planning.allocations.save.mega-bulk') }}",
                 method: "POST",
                 data: { data: JSON.stringify(megaData), _token: "{{ csrf_token() }}" },
+                beforeSend: function() {
+                    showLoader();
+                },
                 success: function(res) {
                     $saveAllBtn.removeClass('loading');
                     if(res.success){
@@ -327,11 +438,15 @@ $(function () {
                 error: function() {
                     $saveAllBtn.removeClass('loading');
                     showNotification('Error saving allocations', 'danger');
+                },
+                complete: function() {
+                    hideLoader();
                 }
             });
         });
     }
 
+    // Basic debounce utility to reduce event spam
     function debounce(func, wait) {
         let timeout;
         return function(...args) {
@@ -341,6 +456,7 @@ $(function () {
         };
     }
 
+    // Lightweight notification used throughout UI
     function showNotification(message, type='info') {
         let alertClass = type==='success' ? 'alert-success' : (type==='danger' ? 'alert-danger':'alert-info');
         let notification = $(`
@@ -354,42 +470,27 @@ $(function () {
         setTimeout(()=>notification.alert('close'), 2000);
     }
 
+    /* -------------------------
+       Rendering: panels and grids
+       ------------------------- */
     function renderPanels() {
+        console.log("renderPanels", renderPanels);
         let selected = $resourceSelect.val() || [];
         let month = $monthSelect.val();
 
-        // let workingMonthDays = workingDaysInMonth(month);
-
-        // $monthlyCapacityHours.text(MAX_HOURS_MONTH + ` hours (8 hrs/day, ${workingMonthDays} working days)`);
-
         let totalWorkingDays = workingDaysInMonth(month); // weekdays only
         let totalLeaves = 0;
-        // let totalHolidays = 0;
 
-        // Compute total leaves/holidays for selected resources
-        // selected.forEach(resourceId => {
-        //     let meta = resourceMeta[resourceId] || {};
-        //     totalLeaves += meta.leaveDays || 0;
-        //     totalHolidays += (holidays.filter(h => {
-        //         let date = new Date(h.date);
-        //         let hMonth = date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0');
-        //         return hMonth === month;
-        //     })).length;
-        // });
-        // Leaves → per resource
+        // Sum leave days across selected resources (resourceMeta contains per-resource leaveDays)
         selected.forEach(resourceId => {
             let meta = resourceMeta[resourceId] || {};
             totalLeaves += meta.leaveDays || 0;
         });
 
-        // Holidays → ONCE per month
+        // Count month-specific holidays (global list)
         let totalHolidays = holidays.filter(h =>
             h.date.substring(0, 7) === month
         ).length;
-
-        console.log("totalWorkingDays", totalWorkingDays);
-        console.log("totalLeaves", totalLeaves);
-        console.log("totalHolidays", totalHolidays);
 
         let adjustedDays = totalWorkingDays - totalHolidays;
         let adjustedHours = adjustedDays * HOURS_PER_DAY;
@@ -399,6 +500,7 @@ $(function () {
         $panelsContainer.empty();
         $saveAllBtn.prop('disabled', selected.length===0);
 
+        console.log("objectselected.length", selected.length);
         if (!selected.length) {
             $panelsContainer.html(`<div class="text-center text-muted py-5"><i class="fas fa-users fa-3x mb-3 opacity-25"></i><h5>No Resources Selected</h5><p>Please select one or more resources to view their capacity planning.</p></div>`);
             return;
@@ -413,24 +515,27 @@ $(function () {
         });
     }
 
+    // Create panel for a single resource: loads assignments/leaves then builds grid
     function createResourcePanel(resourceId, month) {
-        // Remove existing panel for this resource before re-creating it
-        // $panelsContainer.find(`section.panel[data-resource="${resourceId}"]`).remove();
+        // Remove existing panel for this resource if present (refresh)
         $panelsContainer.find('section.panel[data-resource="' + resourceId + '"]').remove();
 
         let selectedProject = $projectFilter.val(); // get selected project
         let resourceName = $resourceSelect.find(`option[value="${resourceId}"]`).text();
+
+        // Load assignments and leaves, then build UI
         loadAssignments(resourceId, month, function(assignmentsData, leavesData) {
-            // Filter assignments if a project is selected
+            // Normalize assignments: server may send object or array
             assignmentsData = assignmentsData
                 ? Object.values(assignmentsData)
                 : [];
 
+            // If a project is selected in filter, display only that project's row
             if(selectedProject) {
                 assignmentsData = assignmentsData.filter(p => p.project_id == selectedProject);
             }
 
-            // Normalize structure for frontend usage
+            // Map server object into frontend project rows expected structure
             let projects = assignmentsData.map(p => ({
                 id: p.project_id,
                 name: p.name,
@@ -443,15 +548,18 @@ $(function () {
                 priority: p.priority || ''
             }));
 
-            // Continue existing logic
+            // Leaves may come as array or structured object; keep both possibilities
             let leaveDates = leavesData || [];
             let leaveDays = leavesData.length;
             let leaveHours = leaveDays * HOURS_PER_DAY;
             let workingDays = workingDaysInMonth(month);
 
+            // Store metadata for this resource
             resourceMeta[resourceId] = { leaveDates, leaveDays, leaveHours, workingDays };
 
             let resourceName = $resourceSelect.find(`option[value="${resourceId}"]`).text();
+
+            // Build panel HTML (summary + save button + allocation table)
             let $panel = $(`
                 <section class="panel fade-in" data-resource="${resourceId}">
                     <div class="panel-header">
@@ -475,6 +583,7 @@ $(function () {
             `);
             $panelsContainer.append($panel);
 
+            // Per-resource save button handler: collects rows and daily inputs, posts to server
             $panel.find('.save-resource-btn').on('click', function() {
                 let resourceId = $(this).data('resource');
                 let month = $monthSelect.val();
@@ -482,7 +591,7 @@ $(function () {
 
                 let allocations = []; // <-- Declare it here
 
-                // Collect all day inputs
+               // Collect all project rows and day inputs
                 $table.find('tr').each(function() {
                     let projectId = $(this).data('project-id');
                     if (!projectId) return;
@@ -491,7 +600,6 @@ $(function () {
                     $(this).find('.day-input').each(function() {
                         let day = $(this).data('day');
                         let val = parseFloat($(this).val()) || 0;
-                        console.log("val +++",val);
                         let dateStr = `${month}-${String(day).padStart(2,'0')}`;
                         daily_hours.push({ date: dateStr, hours: val });
                     });
@@ -508,6 +616,9 @@ $(function () {
                         allocations: JSON.stringify(allocations),
                         _token: "{{ csrf_token() }}"
                     },
+                    beforeSend: function() {
+                        showLoader();
+                    },
                     success: function(res) {
                         if (res.success) {
                             showNotification(`Allocations saved for ${resourceName}`, 'success');
@@ -519,28 +630,25 @@ $(function () {
                     error: function(xhr) {
                         console.error(xhr.responseText);
                         showNotification('Error saving allocations', 'danger');
+                    },
+                    complete: function() {
+                        hideLoader();
                     }
                 });
             });
 
-
-
+            // Build grid rows and header based on projects and month days
             buildAllocationGrid(projects, month, $panel.find('.allocation-table'), resourceId, leavesData);
             updateResourceAllocation(resourceId);
         });
     }
 
-    function daysInMonth(yyyyMM) {
-        let [y,m] = yyyyMM.split('-').map(Number);
-        return new Date(y,m,0).getDate();
-    }
-
-    function isWeekend(y,m,d){ let dow = new Date(y,m-1,d).getDay(); return dow===0||dow===6; }
-
+    // Build table header and rows for allocation grid
     function buildAllocationGrid(projects, yyyyMM, $table, resourceId, leavesData) {
         let days = daysInMonth(yyyyMM);
         let [year,month] = yyyyMM.split('-').map(Number);
 
+        // Table header: Project + one column per day with weekday label
         let $thead = $('<thead></thead>');
         let $headRow = $('<tr></tr>');
         $headRow.append('<th>Project / Tools</th>');
@@ -551,12 +659,14 @@ $(function () {
         }
         $thead.append($headRow);
 
+        // Body: one row per project
         let $tbody = $('<tbody></tbody>');
         projects.forEach(project => $tbody.append(createProjectRow(project, year, month, days, resourceId, leavesData)));
         $table.empty().append($thead,$tbody);
         updateResourceAllocation(resourceId);
     }
 
+    // Create a single project row with tools (apply-all, clear, delete) and day-inputs
     function createProjectRow(project, year, month, days, resourceId, leavesData){
         let leaveInfo = leavesData?.leaves || [];
 
@@ -567,6 +677,7 @@ $(function () {
             );
         }
 
+        // Build row root and header cell (project title + tools)
         let $row = $('<tr></tr>').data('project-id',project.id).data('allocation-id',project.allocation_id||null);
         let $headerCell = $(`
             <td class="project-cell">
@@ -574,9 +685,26 @@ $(function () {
                     <div class="project-title">${project.name}</div>
                     <div class="project-tools">
                         <input type="number" class="form-control tool-input apply-all-input" placeholder="hrs" min="0" max="${MAX_HOURS_PER_DAY}" step="0.5">
-                        <button class="btn btn-outline-light btn-sm apply-all-btn"><i class="fas fa-copy me-1"></i>Apply</button>
-                        <button class="btn btn-warning btn-sm clear-row-btn"><i class="fas fa-eraser me-1"></i>Clear</button>
-                        <button class="btn btn-danger btn-sm delete-row-btn"><i class="fas fa-trash me-1"></i>Delete</button>
+
+                        <select class="form-select tool-week-select">
+                            <option value="all">All</option>
+                            <option value="1">Week1</option>
+                            <option value="2">Week2</option>
+                            <option value="3">Week3</option>
+                            <option value="4">Week4</option>
+                            <option value="5">Week5</option>
+                        </select>
+                        <div class="tool-actions">
+                            <button class="btn btn-outline-light btn-sm apply-all-btn" title="Apply hours">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button class="btn btn-warning btn-sm clear-row-btn" title="Clear row">
+                                <i class="fas fa-eraser"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm delete-row-btn" title="Delete project">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </td>
@@ -584,42 +712,44 @@ $(function () {
         $row.append($headerCell);
 
         let dayInputs=[];
-        // let leaveDates = leavesData;
+        // leaveDates may be a simple array of date strings
         let leaveDates = leavesData?.dates || [];
 
+        // Create day cells with inputs and adjust disabled states (weekend/leave/holiday)
         for(let day=1; day<=days; day++){
             let $cell=$(`<td></td>`);
             let dateStr=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-            // let existingVal = project.allocations && project.allocations[dateStr]!=null ? Math.round(project.allocations[dateStr]):'';
             let existingVal = project.allocations && project.allocations[dateStr]!=null ? project.allocations[dateStr] : '';
-            let $input=$(`<input type="number" class="form-control day-input" min="0" max="${MAX_HOURS_PER_DAY}" step="0.5" data-day="${day}" data-resource="${resourceId}" value="${existingVal}">`);
+            // let $input=$(`<input type="number" class="form-control day-input" min="0" max="${MAX_HOURS_PER_DAY}" step="0.5" data-day="${day}" data-resource="${resourceId}" value="${existingVal}">`);
+            let weekNo = Math.ceil(day / 7);
 
-            // if(isWeekend(year,month,day)){
-            //     $input.prop('disabled',true).addClass('day-off').attr('title','Weekend - Not available');
-            // } else if(leaveDates.includes(dateStr)){
-            //     $input.prop('disabled',true).addClass('leave-day').attr('title','Leave Day - Not available');
-            // } else {
-            //     $input.attr('title',`Hours for day ${day}`);
-            // }
+            let $input=$(`<input type="number" class="form-control day-input"
+                min="0" max="${MAX_HOURS_PER_DAY}" step="0.5"
+                data-day="${day}"
+                data-week="${weekNo}"
+                data-resource="${resourceId}"
+                value="${existingVal}">`);
 
+            // Weekend -> disabled
             if (isWeekend(year, month, day)) {
                 $input.prop('disabled', true)
                     .addClass('day-off')
                     .attr('title','Weekend - Not available');
 
             } else if (isFullDayLeave(dateStr, leaveInfo)) {
-                // FULL day leave → disable
+                // Full-day leave -> disabled
                 $input.prop('disabled', true)
                     .addClass('leave-day')
                     .attr('title','Full Day Leave - Not available');
 
             } else if (leaveDates.includes(dateStr)) {
-                // HALF day leave → enabled, only tooltip
+                // Half-day leave -> enabled but marked
                 $input.prop('disabled', false)
                     .addClass('half-leave-day')
                     .attr('title','Half Day Leave');
 
             } else if (holidays.some(h => h.date === dateStr)) {
+                // Company holiday -> disabled
                 $input.prop('disabled', true)
                     .addClass('holiday-day')
                     .attr('title','Holiday - Not available');
@@ -633,22 +763,23 @@ $(function () {
             dayInputs.push($input);
         }
 
+        // Attach events to tools and inputs for this row
         bindProjectRowEvents($row, dayInputs, resourceId);
         return $row;
     }
 
-    // Bind events for each row
+    /* -------------------------
+       Row-level event bindings
+       ------------------------- */
     function bindProjectRowEvents($row, dayInputs, resourceId) {
         let $applyAllInput = $row.find('.apply-all-input');
         let $applyAllBtn   = $row.find('.apply-all-btn');
         let $clearBtn      = $row.find('.clear-row-btn');
         let $deleteBtn     = $row.find('.delete-row-btn');
 
-        // Apply-all
+        // Apply value to all enabled inputs in row and save to server
         $applyAllBtn.on('click', function() {
             let value = parseFloat($applyAllInput.val());
-
-            console.log("MAX_HOURS_PER_DAY 222", MAX_HOURS_PER_DAY);
             if (isNaN(value) || value < 0 || value > MAX_HOURS_PER_DAY) {
                 showNotification(`Please enter a valid number between 0 and ${MAX_HOURS_PER_DAY} hours`, 'danger');
                 $applyAllInput.focus().select();
@@ -664,17 +795,35 @@ $(function () {
 
             let allocatedSoFar = 0;
             let daily_hours = [];
+            // dayInputs.forEach($input => {
+            //     if (!$input.prop('disabled')) {
+            //         let day = $input.data('day');
+            //         let dateStr = `${month}-${String(day).padStart(2, '0')}`;
+            //         daily_hours.push({ date: dateStr, hours: value });
+            //         $input.val(value); // update UI
+            //     }
+            // });
+            let selectedWeek = $row.find('.tool-week-select').val();
+
             dayInputs.forEach($input => {
-                if (!$input.prop('disabled')) {
-                    let day = $input.data('day');
-                    let dateStr = `${month}-${String(day).padStart(2, '0')}`;
-                    daily_hours.push({ date: dateStr, hours: value });
-                    $input.val(value); // update UI
+                if ($input.prop('disabled')) return;
+
+                let inputWeek = $input.data('week');
+
+                if (selectedWeek !== 'all' && Number(selectedWeek) !== inputWeek) {
+                    return;
                 }
+
+                let day = $input.data('day');
+                let dateStr = `${month}-${String(day).padStart(2, '0')}`;
+
+                daily_hours.push({ date: dateStr, hours: value });
+                $input.val(value);
             });
 
             updateResourceAllocation(resourceId);
 
+            // Save the applied hours for this row via AJAX
             $.ajax({
                 url: "{{ route('capacity-planning.allocations.save') }}",
                 method: "POST",
@@ -685,6 +834,9 @@ $(function () {
                     daily_hours: JSON.stringify(daily_hours),
                     _token: "{{ csrf_token() }}"
                 },
+                beforeSend: function() {
+                    showLoader();
+                },
                 success: function(res) {
                     if (res.success) {
                         showNotification('Hours applied and saved successfully!', 'success');
@@ -694,13 +846,21 @@ $(function () {
                         let acceptedMap = {};
                         accepted.forEach(d => { acceptedMap[d.date] = d.hours; });
 
+                        // dayInputs.forEach($input => {
+                        //     let day = $input.data('day');
+                        //     let dateStr = `${month}-${String(day).padStart(2, '0')}`;
+                        //     if (acceptedMap[dateStr] !== undefined) {
+                        //         $input.val(acceptedMap[dateStr]);
+                        //     } else {
+                        //         $input.val('');
+                        //     }
+                        // });
                         dayInputs.forEach($input => {
                             let day = $input.data('day');
                             let dateStr = `${month}-${String(day).padStart(2, '0')}`;
-                            if (acceptedMap[dateStr] !== undefined) {
+
+                            if (acceptedMap.hasOwnProperty(dateStr)) {
                                 $input.val(acceptedMap[dateStr]);
-                            } else {
-                                $input.val('');
                             }
                         });
 
@@ -710,10 +870,14 @@ $(function () {
                 },
                 error: function() {
                     showNotification('Error saving allocations', 'danger');
+                },
+                complete: function() {
+                    hideLoader();
                 }
             });
         });
 
+        // Validate per-input numeric entry (0..MAX_HOURS_PER_DAY)
         dayInputs.forEach($input => {
             let oldVal = $input.val();
 
@@ -728,14 +892,10 @@ $(function () {
                     return;
                 }
 
-                // Check if it is a valid number (0-8) and no extra characters
-                // if (/^\d+(\.\d+)?$/.test(val)) {
+                // Accept numeric with optional decimal
                 if (/^\d+(\.\d+)?$/.test(val)) {
                     let num = parseFloat(val);
                     // let num = parseInt(val, 10);
-                    console.log("num", num);
-
-                    console.log("MAX_HOURS_PER_DAY 222", MAX_HOURS_PER_DAY);
                     if (num >= 0 && num <= MAX_HOURS_PER_DAY) {
                         oldVal = val;
                         $this.removeClass('invalid-input');
@@ -743,7 +903,7 @@ $(function () {
                     }
                 }
 
-                // Invalid input
+                // Invalid → show notification and revert after delay
                 $this.addClass('invalid-input');
                 showNotification(`Please enter a valid number between 0 and ${MAX_HOURS_PER_DAY} hours`, 'danger');
 
@@ -757,7 +917,7 @@ $(function () {
             });
         });
 
-        // Clear row
+        // Clear row inputs
         $clearBtn.on('click', function() {
             dayInputs.forEach($input => $input.val(''));
             $applyAllInput.val('');
@@ -765,7 +925,7 @@ $(function () {
             showNotification('Row cleared', 'success');
         });
 
-        // Delete row
+        // Delete allocation row (server call)
         $deleteBtn.on('click', function () {
             if (confirm('Are you sure you want to delete this project allocation?')) {
                 let allocationId = $row.data('allocation-id'); // make sure you set this in HTML
@@ -776,6 +936,9 @@ $(function () {
                     method: "DELETE",
                     data: {
                         _token: "{{ csrf_token() }}"
+                    },
+                    beforeSend: function () {
+                        showLoader();
                     },
                     success: function (res) {
                         if (res.success) {
@@ -790,18 +953,20 @@ $(function () {
                     },
                     error: function () {
                         showNotification('Error deleting allocation', 'danger');
+                    },
+                    complete: function () {
+                        hideLoader();
                     }
                 });
             }
         });
 
-        // Enter key should trigger Apply
+        // Pressing Enter in the apply-all input triggers apply action
         $applyAllInput.on('keypress', function(e) {
             if (e.which === 13) { // Enter key
                 let value = parseFloat($applyAllInput.val());
 
                 // Check if value is a number and within 0-8
-                console.log("MAX_HOURS_PER_DAY33", MAX_HOURS_PER_DAY);
                 if (isNaN(value) || value < 0 || value > MAX_HOURS_PER_DAY) {
                     showNotification(`Please enter a valid number between 0 and ${MAX_HOURS_PER_DAY} hours`, 'danger');
                     $applyAllInput.focus().select();
@@ -813,7 +978,9 @@ $(function () {
         });
     }
 
-    // Update allocation summary
+    /* -------------------------
+       Summary calculation: updates allocation info area for a resource
+       ------------------------- */
     function updateResourceAllocation(resourceId){
         let meta = resourceMeta[resourceId] || {};
         // let leaveDates = meta.leaveDates || [];
@@ -827,7 +994,6 @@ $(function () {
             );
         }
 
-        console.log("leaveDates", leaveDates);
         let $table = $(`.allocation-table[data-resource="${resourceId}"]`);
         let $allocationInfo = $(`.allocation-info[data-resource="${resourceId}"]`);
         
@@ -836,44 +1002,32 @@ $(function () {
         let leaveHoursCount = 0;
         let leaveDaysCount = leaveDates.length; // unique leave days
 
+        // Iterate all day inputs and sum valid values, clearing disabled days
         $table.find('input.day-input').each(function(){
             let $input = $(this);
-            console.log("$input", $input);
             let day = $input.data('day'); 
             let dateStr = `${month}-${String(day).padStart(2,'0')}`;
 
-            // Holidays
+            // If holiday -> clear and skip
             if (holidays.some(h => h.date === dateStr)) {
                 $input.val('');
                 return;
             }
 
-            // Full day leave
+            // Full day leave -> clear input
             if (isFullDayLeave(dateStr, leaveInfo)) {
-                // Only FULL day leave clears input
                 $input.val('');
                 return;
             }
 
-            // Normal hours
-            // let val = parseInt($input.val(), 10);
+            // Parse numeric value, guard range
             let val = parseFloat($input.val());
             if (isNaN(val) || val < 0 || val > MAX_HOURS_PER_DAY) val = 0;
             $input.val(val); // force valid value in UI
             totalAllocated += val;
         });
 
-        // let resourceHolidays = holidays.filter(h => {
-        //     let date = new Date(h.date);
-        //     let hMonth = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
-        //     return hMonth === month;
-        // });
-
-        // let holidayHours = resourceHolidays.length * HOURS_PER_DAY;
-        // let effectiveCapacity = MAX_HOURS_MONTH - leaveHoursCount - holidayHours;
-        // let available = Math.max(0, effectiveCapacity - totalAllocated);
-        // let utilizationPercent = effectiveCapacity > 0 ? Math.min(100, Math.round((totalAllocated / effectiveCapacity) * 100)) : 0;
-
+        // Compute holiday and leave hours for effective capacity
         let resourceHolidays = holidays.filter(h => {
             let d = h.date.substring(0, 7);
             return d === month;
@@ -882,24 +1036,21 @@ $(function () {
         let holidayDays  = resourceHolidays.length;
         let holidayHours = holidayDays * HOURS_PER_DAY;
 
-        // Leave (already unique)
-        // let leaveDays  = leaveDates.length;
+        // leaveDays supplied via meta, if available
         let leaveDays = meta.leaveDates?.total_leave_days || 0;
         let leaveHours = leaveDays * HOURS_PER_DAY;
 
-        // Base monthly capacity (weekdays only)
+        // Base monthly capacity (precomputed MAX_HOURS_MONTH)
         let baseCapacity = MAX_HOURS_MONTH;
 
-        // Final effective capacity
+         // Effective capacity after subtracting leave and holiday hours
         let effectiveCapacity = Math.max(
             0,
             baseCapacity - leaveHours - holidayHours
         );
 
-        // Available hours
+        // Compute available hours and utilization %
         let available = Math.max(0, effectiveCapacity - totalAllocated);
-
-        // Utilization %
         let utilizationPercent = effectiveCapacity > 0
             ? Math.round((totalAllocated / effectiveCapacity) * 100)
             : 0;
@@ -917,44 +1068,41 @@ $(function () {
         if (totalAllocated > effectiveCapacity) $allocationInfo.addClass('overallocated');
     }
 
-
+    // Returns CSS class for status indicator based on allocated hours
     function getStatusClass(allocated){
         if(allocated>MAX_HOURS_MONTH) return 'status-overallocated';
         if(allocated>MAX_HOURS_MONTH*0.8) return 'status-warning';
         return 'status-available';
     }
 
+    /* -------------------------
+       Initialization calls
+       ------------------------- */
     initMonth(); 
     loadResources(); 
     bindEvents(); 
     loadHolidays();
-    // renderPanels();
+    renderPanels();
 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ------------------------- Add / Edit Project Modal ------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
+    /* ---------------------------------------------------------------------
+       Project modal: Add / Edit project logic and validation
+       --------------------------------------------------------------------- */
 
-  
-    //  Add Project Modal (Start Date End Date Logic) ----------------------
+    // Elements for Add Project date logic
     let startDateInput = document.getElementById('addStartDate');
     let endDateInput = document.getElementById('addEndDate');
 
-    // Today's date in YYYY-MM-DD format
+    // Today's date string (used for min restrictions)
     let today = new Date();
     let yyyy = today.getFullYear();
     let mm = String(today.getMonth() + 1).padStart(2, '0');
     let dd = String(today.getDate()).padStart(2, '0');
     let todayStr = `${yyyy}-${mm}-${dd}`;
 
-    // Remove min restriction for Start Date (allow past dates)
-    // startDateInput.min = todayStr; // removed
+    // Allow past dates for start date; enforce min on end date (cannot be earlier than today)
     endDateInput.min = todayStr; // End date still cannot be before today
 
-    // When Start Date changes
+    // When start date changes, update end date min and reset end date if invalid
     startDateInput.addEventListener('change', function() {
         let startDate = this.value;
         if (startDate) {
@@ -978,12 +1126,9 @@ $(function () {
         }
     });
 
-    //  Edit Project Modal (Start Date End Date Logic) ----------------------
+    // Edit project date inputs (similar logic)
     let editStartDateInput = document.getElementById('editStartDate');
     let editEndDateInput = document.getElementById('editEndDate');
-
-    // Remove min restriction for Start Date (allow past dates)
-    // editEndDateInput.min = todayStr;
 
     // When Start Date changes
     editStartDateInput.addEventListener('change', function() {
@@ -1009,155 +1154,32 @@ $(function () {
         }
     });
 
-    // Initialize Select2
-    $('#addManagerSelect').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select manager", 
-        allowClear: true 
-    });
+    // Initialize select2 for modal fields (project manager, resources, status/priority)
+    $('#addManagerSelect').select2({ dropdownParent: $('#projectModal'), placeholder: "Select manager", allowClear: true });
+    $('#editManagerSelect').select2({ dropdownParent: $('#projectModal'), placeholder: "Select manager", allowClear: true });
+    $('#addResourceSelect').select2({ dropdownParent: $('#projectModal'), placeholder: "Select resources", allowClear: true, width: '100%' });
+    $('#editResourceSelect').select2({ dropdownParent: $('#projectModal'), placeholder: "Select resources", allowClear: true });
+    $('#priorityOfProject').select2({ dropdownParent: $('#projectModal'), placeholder: "Select priority", allowClear: true });
+    $('#editPriorityOfProject').select2({ dropdownParent: $('#projectModal'), placeholder: "Select priority", allowClear: true });
+    $('#statusofProject').select2({ dropdownParent: $('#projectModal'), placeholder: "Select status", allowClear: true });
+    $('#editStatusofProject').select2({ dropdownParent: $('#projectModal'), placeholder: "Select status", allowClear: true });
+    $('#editProjectSelect').select2({ dropdownParent: $('#projectModal'), placeholder: "Select project", allowClear: true });
 
-    $('#editManagerSelect').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select manager",
-        allowClear: true
-    });
-
-    $('#addResourceSelect').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select resources", 
-        allowClear: true,
-        width: '100%'
-        // dropdownAutoWidth: true
-    });
-
-    $('#editResourceSelect').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select resources",
-        allowClear: true
-    });
-
-    $('#priorityOfProject').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select priority",
-        allowClear: true
-    });
-
-    $('#editPriorityOfProject').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select priority",
-        allowClear: true
-    });
-
-    $('#statusofProject').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select status",
-        allowClear: true
-    });
-
-    $('#editStatusofProject').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select status",
-        allowClear: true
-    });
-
-    $('#editProjectSelect').select2({ 
-        dropdownParent: $('#projectModal'), 
-        placeholder: "Select project",
-        allowClear: true
-    });
-
-
-    // This closes & reopens the dropdown so it recalculates position based on new height.
-    $('#addResourceSelect').on('select2:select select2:unselect', function (e) {
-        // Delay a bit so Select2 can finish DOM changes
+    // Fix select2 dropdown positioning when resource selects change (close & reopen trick)
+    $('#addResourceSelect, #editResourceSelect, #resourceSelect').on('select2:select select2:unselect', function (e) {
         setTimeout(function () {
-            $('#addResourceSelect').select2('close'); // Close and re-open to fix position
-            $('#addResourceSelect').select2('open');
+            $(e.target).select2('close');
+            $(e.target).select2('open');
         }, 10);
     });
 
-    // This closes & reopens the dropdown so it recalculates position based on new height.
-    $('#editResourceSelect').on('select2:select select2:unselect', function (e) {
-        // Delay a bit so Select2 can finish DOM changes
-        setTimeout(function () {
-            $('#editResourceSelect').select2('close'); // Close and re-open to fix position
-            $('#editResourceSelect').select2('open');
-        }, 10);
-    });
-
-    // Add Project Validation on keyup ----
-    $('#projectName').on('keyup', function () {
-        $('#projectName').valid();
-    });
-
-    $('#totalHours').on('keyup', function () {
-        $('#totalHours').valid();
-    });
-    
-    $('#descriptionPro').on('keyup', function () {
-        $('#descriptionPro').valid();
-    });
-  
-    $('#addStartDate').on('change', function () {
-        $('#addStartDate').valid();
-    });
-
-    $('#addEndDate').on('change', function () {
-        $('#addEndDate').valid();
-    });
-
-    $('#addManagerSelect').on('change', function () {
-        $('#addManagerSelect').valid(); // trigger validation on select change
-    });
-
-    $('#addResourceSelect').on('change', function () {
-        $('#addResourceSelect').valid(); // trigger validation on select change
-    });
-
-    $('#statusofProject').on('change', function () {
-        $('#statusofProject').valid(); // trigger validation on select change
-    });
-
-    $('#priorityOfProject').on('change', function () {
-        $('#priorityOfProject').valid(); // trigger validation on select change
-    });
+    // Trigger validation on keyup/change for project modal inputs (jQuery Validate used below)
+    $('#projectName, #totalHours, #descriptionPro').on('keyup', function () { $(this).valid(); });
+    $('#addStartDate, #addEndDate, #addManagerSelect, #addResourceSelect, #statusofProject, #priorityOfProject').on('change', function () { $(this).valid(); });
 
     // Edit Project Validation on keyup ----
-    $('#editProjetName').on('keyup', function () {
-        $('#editProjetName').valid();
-    });
-
-    $('#editTotalHours').on('keyup', function () {
-        $('#editTotalHours').valid();
-    });
-    
-    $('#editDescription').on('keyup', function () {
-        $('#editDescription').valid();
-    });
-  
-    $('#editStartDate').on('change', function () {
-        $('#editStartDate').valid();
-    });
-
-    $('#editEndDate').on('change', function () {
-        $('#editEndDate').valid();
-    });
-
-    $('#editManagerSelect').on('change', function () {
-        $('#editManagerSelect').valid(); // trigger validation on select change
-    });
-
-    $('#editResourceSelect').on('change', function () {
-        $('#editResourceSelect').valid(); // trigger validation on select change
-    });
-
-    $('#editStatusofProject').on('change', function () {
-        $('#editStatusofProject').valid(); // trigger validation on select change
-    });
-
-    $('#editPriorityOfProject').on('change', function () {
-        $('#editPriorityOfProject').valid(); // trigger validation on select change
-    });
+    $('#editProjetName, #editTotalHours, #editDescription').on('keyup', function () { $(this).valid(); });
+    $('#editStartDate, #editEndDate, #editManagerSelect, #editResourceSelect, #editStatusofProject, #editPriorityOfProject').on('change', function () { $(this).valid(); });
 
     // This closes & reopens the dropdown so it recalculates position based on new height.
     $('#resourceSelect').on('select2:select select2:unselect', function (e) {
@@ -1210,7 +1232,7 @@ $(function () {
         searchBox.attr('placeholder', 'Select priority');
     });
 
-    // Open Add/Edit Project Modal
+    // Add/Edit Project modal open: reset forms and show initial step
     $('#addEditProjectBtn').on('click', function() {
         $('#addManagerSelect, #addResourceSelect, #statusofProject, #priorityOfProject, #editProjectSelect, #editManagerSelect, #editResourceSelect, #editStatusofProject, #editPriorityOfProject').val(null).trigger('change');
 
@@ -1223,7 +1245,7 @@ $(function () {
         $('#footerDiv').addClass('d-none');
     });
 
-    // Choose Add
+    // 'Choose Add' -> show add form
     $('#chooseAddBtn').on('click', function() {
         $('#chooseActionStep').addClass('d-none');
         $('#addProjectForm').removeClass('d-none');
@@ -1236,7 +1258,7 @@ $(function () {
         $('#footerDiv').removeClass('d-none');
     });
 
-    // Choose Edit
+    // 'Choose Edit' -> show edit dropdown first
     $('#chooseEditBtn').on('click', function() {
         $('#chooseActionStep').addClass('d-none');
         $('#editProjectForm').addClass('d-none');
@@ -1247,8 +1269,7 @@ $(function () {
          $('#footerDiv').addClass('d-none');
     });
 
-    // Load selected project data via AJAX
-    // Load selected project data (already given)
+    // When a project is selected to edit, fetch its details and populate form
     $('#editProjectSelect').on('change', function() {
         $('#editProjectForm').removeClass('d-none');
         $('#editFooterDiv').removeClass('d-none');
@@ -1262,8 +1283,10 @@ $(function () {
         $.ajax({
             url: `/projects/${projectId}/edit`,
             method: 'GET',
+            beforeSend: function() {
+                showLoader();
+            },
             success: function(data) {
-                console.log("data", data);
                 let form = $('#editProjectForm');
                 form.attr('data-project-id', data.id);
                 form.find('input[name="name"]').val(data.name);
@@ -1276,11 +1299,17 @@ $(function () {
                 form.find('select[name="status"]').val(data.status).trigger('change');
                 form.find('select[name="priority"]').val(data.priority).trigger('change');
                 form.find('input[name="is_billable"]').prop('checked', data.is_billable);
+            },
+            error: function() {
+                showNotification('Error fetching project details', 'danger');
+            },
+            complete: function() {
+                hideLoader();
             }
         });
     });
 
-    // Initialize jQuery Validation for Add Project
+    // jQuery Validation rules for Add Project form
     $("#addProjectForm").validate({
         errorElement: "span",
         errorClass: "error",
@@ -1360,14 +1389,6 @@ $(function () {
         submitHandler: function(form, event) {
             event.preventDefault();
 
-            // // Check date logic
-            // let startDate = new Date($('#addProjectForm input[name="start_date"]').val());
-            // let endDate = new Date($('#addProjectForm input[name="end_date"]').val());
-            // if (endDate < startDate) {
-            //     alert("End Date must be after Start Date.");
-            //     return false;
-            // }
-
             let formData = new FormData(form);
 
             // normalize checkbox
@@ -1380,6 +1401,9 @@ $(function () {
                 data: formData,
                 processData: false,
                 contentType: false,
+                beforeSend: function() {
+                    showLoader();
+                },
                 success: function(response) {
                     if (response.success) {
                         // swal("Success", response.message, "success");
@@ -1401,13 +1425,15 @@ $(function () {
                     }
                     // swal("Error", errorMsg, "error");
                     showNotification(errorMsg || "Something went wrong", 'danger');
+                },
+                complete: function() {
+                    hideLoader();
                 }
             });
         }
     });
 
-    // Submit Edit Form
-    // Initialize jQuery Validation for Edit Project (Same rules/messages)
+    // jQuery Validation for Edit Project form (similar rules)
     $("#editProjectForm").validate({
         errorElement: "span",
         errorClass: "error",
@@ -1497,6 +1523,9 @@ $(function () {
                 data: formData,
                 processData: false,
                 contentType: false,
+                beforeSend: function() {
+                    showLoader();
+                },
                 success: function(response) {
                     if (response.success) {
                         showNotification(response.message, 'success');
@@ -1513,12 +1542,15 @@ $(function () {
                     } else {
                         showNotification("Something went wrong while updating the project", 'danger');
                     }
+                },
+                complete: function() {
+                    hideLoader();
                 }
             });
         }
     });
 
-    // reset the form every time the modal is closed
+    // Reset forms and select2 fields when project modal closes
     $('#projectModal').on('hidden.bs.modal', function () {
         // Reset the form
         $('#addProjectForm')[0].reset();
@@ -1532,39 +1564,21 @@ $(function () {
 
     });
 
-
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ------------------------- Holiday Manage Modal ------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    let editingId = null;
-
-    // Initialize Flatpickr
+    /* ---------------------------------------------------------------------
+       Holiday management: load, render, add/edit/delete with smooth UI
+       --------------------------------------------------------------------- */
+    // Flatpickr instance for holiday date range
     const flatpickrInstance = flatpickr("#dateRange", {
         mode: "range",
         dateFormat: "Y-m-d",
         minDate: "today",
         onChange: function(selectedDates, dateStr) {
-            // hide legacy error UI
             $('#dateError').hide();
-            // trigger jQuery Validate for this field
             $('input[name="date_range"]').valid();
         }
     });
 
-    // CSRF setup for all AJAX
-    $.ajaxSetup({
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        }
-    });
-
-    /** ============================
-     *  Load & Render Holidays
-     * ============================ */
+    // Load holidays from server and render the list
     function loadHolidays() {
         $.get('/holidays', res => {
             holidays = res || [];
@@ -1576,6 +1590,7 @@ $(function () {
         });
     }
 
+    // Render holidays list in the holiday modal
     function renderHolidays() {
         const listContainer = $('#holidaysList');
         if (!holidays.length) {
@@ -1602,9 +1617,7 @@ $(function () {
         return d.toLocaleDateString('en-US', { weekday:'short', year:'numeric', month:'short', day:'numeric' });
     }
 
-    /** ============================
-     *  Form Validation (jQuery Validate)
-     * ============================ */
+    // Holiday form validation using jQuery Validate
     $("#holidayForm").validate({
         errorElement: "span",
         errorClass: "error",
@@ -1645,9 +1658,8 @@ $(function () {
         }
     });
 
-    /** ============================
-     *  Add / Update Holiday
-     * ============================ */
+    // Save or update holiday; editingId used to determine update vs create
+    let editingId = null;
     function saveHoliday() {
         const dateRange = $('#dateRange').val();
         const desc = $('#description').val().trim();
@@ -1660,6 +1672,10 @@ $(function () {
                 url: `/holidays/${editingId}`,
                 type: 'POST',
                 data: data,
+                beforeSend: () => {
+                    // Optionally show loader
+                    showLoader();
+                },
                 success: (response) => {
                     editingId = null;
                     $('#btnText').text('Add Holiday');
@@ -1672,6 +1688,9 @@ $(function () {
                 },
                 error: (err) => {
                     showNotification(err.responseJSON?.message || "Failed to update holiday", 'danger');
+                },
+                complete: () => {
+                    hideLoader();
                 }
             });
         } else {
@@ -1691,10 +1710,7 @@ $(function () {
         }
     }
 
-
-    /** ============================
-     *  Edit Holiday
-     * ============================ */
+    // Edit holiday button opens modal populated with existing data
     $('#holidaysList').on('click', '.holidays-btn-edit', function() {
         const id = $(this).data('id');
         const h = holidays.find(x => x.id === id);
@@ -1708,9 +1724,7 @@ $(function () {
         $('#holidayModal').modal('show');
     });
 
-    /** ============================
-     *  Delete Holiday (Smooth UI)
-     * ============================ */
+    // Delete holiday with smooth fade out UI
     $('#holidaysList').on('click', '.holidays-btn-delete', function() {
         const id = $(this).data('id');
         const item = $(this).closest('.holidays-item');
@@ -1718,6 +1732,10 @@ $(function () {
         $.ajax({
             url: `/holidays/${id}`,
             type: 'DELETE',
+            beforeSend: () => {
+                // Optionally show loader
+                showLoader();
+            },
             success: (response) => {
                 // Smooth fade-out removal
                 item.fadeOut(400, function() {
@@ -1730,136 +1748,45 @@ $(function () {
             },
             error: (err) => {
                 showNotification(err.responseJSON?.message || "Failed to delete holiday", 'danger');
+            },
+            complete: () => {
+                hideLoader();
             }
         });
     });
 
-    /** ============================
-     *  Modal Reset
-     * ============================ */
+    // Reset holiday form when modal hides
     $('#holidayModal').on('hidden.bs.modal', function() {
         $('#holidayForm')[0].reset();
         $('#btnText').text('Add Holiday');
         $("#holidayForm").data('validator').resetForm();
     });
 
-    // Initial Load
+    // Initial load of holidays
     loadHolidays();
 
 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ------------------------- Add / Edit Resource Modal ------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
+    /* ---------------------------------------------------------------------
+       Resource modal: init select2, add/edit logic and validation
+       --------------------------------------------------------------------- */
+    $('#manage-resource-editSelect').select2({ width: '100%', dropdownParent: $('#manageResourceModal'), placeholder: "Select resources", allowClear: true });
+    $('#manage-resource-deptSelect').select2({ width: '100%', dropdownParent: $('#manageResourceModal'), placeholder: "Select department", allowClear: true });
+    $('#manage-resource-editDept').select2({ width: '100%', dropdownParent: $('#manageResourceModal'), placeholder: "Select department", allowClear: true });
+    $('#manage-resource-statusSelect').select2({ width: '100%', dropdownParent: $('#manageResourceModal'), placeholder: "Select status", allowClear: true });
+    $('#manage-resource-editStatus').select2({ width: '100%', dropdownParent: $('#manageResourceModal'), placeholder: "Select status", allowClear: true });
 
-
-    $('#manage-resource-editSelect').select2({
-        width: '100%',
-        dropdownParent: $('#manageResourceModal'), 
-        placeholder: "Select resources",
-        allowClear: true
-    });
-    
-    $('#manage-resource-deptSelect').select2({
-        width: '100%',
-        dropdownParent: $('#manageResourceModal'), 
-        placeholder: "Select department",
-        allowClear: true
-    });
-
-    $('#manage-resource-editDept').select2({
-        width: '100%',
-        dropdownParent: $('#manageResourceModal'), 
-        placeholder: "Select department",
-        allowClear: true
-    });
-
-    $('#manage-resource-statusSelect').select2({
-        width: '100%',
-        dropdownParent: $('#manageResourceModal'), 
-        placeholder: "Select status",
-        allowClear: true
-    });
-
-    $('#manage-resource-editStatus').select2({
-        width: '100%',
-        dropdownParent: $('#manageResourceModal'), 
-        placeholder: "Select status",
-        allowClear: true
-    });
-
-    /* Inside set placeholder in search dropdown select2 */
-    $('#manage-resource-editSelect').on('select2:open', function () {
-        // Find the search input inside the dropdown
+    // Placeholders for select2 on open
+    $('#manage-resource-editSelect, #manage-resource-deptSelect, #manage-resource-statusSelect, #manage-resource-editDept, #manage-resource-editStatus').on('select2:open', function () {
         let searchBox = $('.select2-container--open .select2-search__field');
-        searchBox.attr('placeholder', 'Search resource');
+        searchBox.attr('placeholder', $(this).data('placeholder') || 'Search');
     });
 
-    /* Inside set placeholder in search dropdown select2 */
-    $('#manage-resource-deptSelect').on('select2:open', function () {
-        // Find the search input inside the dropdown
-        let searchBox = $('.select2-container--open .select2-search__field');
-        searchBox.attr('placeholder', 'Search department');
+    // Simple input validation triggers for resource forms
+    $('#manage-resource-editName, #manage-resource-nameInput, #manage-resource-editEmail, #manage-resource-emailInput, #manage-resource-role, #manage-resource-editRole, #manage-resource-editCapacity, #manage-resource-daily-capacity, #manage-resource-total-hours, #manage-resource-editTotalHours, #manage-resource-leave-hours, #manage-resource-editLeaveHours').on('keyup', function () {
+        $(this).valid();
     });
 
-    /* Inside set placeholder in search dropdown select2 */
-    $('#manage-resource-statusSelect').on('select2:open', function () {
-        // Find the search input inside the dropdown
-        let searchBox = $('.select2-container--open .select2-search__field');
-        searchBox.attr('placeholder', 'Search status');
-    });
-
-    /* Inside set placeholder in search dropdown select2 */
-    $('#manage-resource-editDept').on('select2:open', function () {
-        // Find the search input inside the dropdown
-        let searchBox = $('.select2-container--open .select2-search__field');
-        searchBox.attr('placeholder', 'Search department');
-    });
-
-    /* Inside set placeholder in search dropdown select2 */
-    $('#manage-resource-editStatus').on('select2:open', function () {
-        // Find the search input inside the dropdown
-        let searchBox = $('.select2-container--open .select2-search__field');
-        searchBox.attr('placeholder', 'Search status');
-    });
-
-    // Add Project Validation on keyup ----
-    $('#manage-resource-editName, #manage-resource-nameInput').on('keyup', function () {
-        $('#manage-resource-editName').valid();
-        $('#manage-resource-nameInput').valid();
-    });
-
-    $('#manage-resource-editEmail, #manage-resource-emailInput').on('keyup', function () {
-        $('#manage-resource-editEmail').valid();
-        $('#manage-resource-emailInput').valid();
-    });
-
-    $('#manage-resource-role, #manage-resource-editRole').on('keyup', function () {
-        $('#manage-resource-role').valid();
-        $('#manage-resource-editRole').valid();
-    });
-
-    $('#manage-resource-editCapacity, #manage-resource-daily-capacity').on('keyup', function () {
-        $('#manage-resource-editCapacity').valid();
-        $('#manage-resource-daily-capacity').valid();
-    });
-
-    $('#manage-resource-total-hours, #manage-resource-editTotalHours').on('keyup', function () {
-        $('#manage-resource-total-hours').valid();
-        $('#manage-resource-editTotalHours').valid();
-    });
-
-    $('#manage-resource-leave-hours, #manage-resource-editLeaveHours').on('keyup', function () {
-        $('#manage-resource-leave-hours').valid();
-        $('#manage-resource-editLeaveHours').valid();
-    });
-
-    /* ------------------------------------
-         OPEN: ADD RESOURCE FORM
-    ------------------------------------ */
+    /* Show add resource form in modal */
     $('#manageResourceAddBtn').on('click', function () {
 
         // Hide Add/Edit buttons
@@ -1885,9 +1812,7 @@ $(function () {
         $('.manage-resource-scroll').animate({ scrollTop: 0 }, 'slow');
     });
 
-    /* ------------------------------------
-         OPEN: EDIT RESOURCE DROPDOWN
-    ------------------------------------ */
+    /* Show edit resource dropdown in modal */
     $('#manageResourceEditBtn').on('click', function () {
 
         // Hide choose section
@@ -1906,9 +1831,7 @@ $(function () {
         $('#manage-resource-editSelect').val(null).trigger('change');
     });
 
-    /* -----------------------------------------------------
-         WHEN USER SELECTS A RESOURCE FROM DROPDOWN
-    ------------------------------------------------------ */
+    /* On selecting a resource to edit, fetch details and populate edit form */
     $('#manage-resource-editSelect').on('change', function () {
 
         let id = $(this).val();
@@ -1925,6 +1848,9 @@ $(function () {
         $.ajax({
             url: "/resources/" + id,    // <-- Your GET route must return resource details
             method: "GET",
+            beforeSend: function () {
+                showLoader();
+            },
             success: function (response) {
 
                 let data = response.data;
@@ -1946,15 +1872,18 @@ $(function () {
 
                 // Scroll top
                 $('#manage-resource-editForm .manage-resource-scroll').animate({ scrollTop: 0 }, 'slow');
+            },
+            error: function () {
+                showNotification("Failed to fetch resource details", "danger");
+            },
+            complete: function () {
+                hideLoader();
             }
         });
     });
 
-    /* ------------------------------------
-         RESET MODAL ON CLOSE
-    ------------------------------------ */
+    // Reset resource modal on close
     $('#manageResourceModal').on('hidden.bs.modal', function () {
-        console.log("here add or edit modal close");
         // Reset everything back
         $('#manage-resource-chooseAction').removeClass('d-none');
 
@@ -1985,32 +1914,23 @@ $(function () {
         }, 1500);
     });
 
+    // Reset on show as well (ensures clean state)
     $('#manageResourceModal').on('show.bs.modal', function () {
-        console.log("here add or edit modal opend shown");
         // Reset all forms and selects
         $('form').each(function () {
             this.reset();
         })
 
-         console.log("here add or edit modal opend1");
-
         $('.select-search').val(null).trigger('change');
-
-        console.log("here add or edit modal opend 22");
 
         // Reset form validation errors
         setTimeout(() => {
             $('#manage-resource-addForm').validate().resetForm();
             $('#manage-resource-editForm').validate().resetForm();
         }, 1500);
-
-        console.log("here add or edit modal opend 333");
     });
 
-    /* -------------------------------------
-    Custom Validation Methods
-    ------------------------------------- */
-
+    /* Custom jQuery Validate methods for resources */
     // Letters & spaces only (no special characters, no numbers)
     $.validator.addMethod("lettersOnly", function (value, element) {
         return this.optional(element) || /^[a-zA-Z\s]+$/.test(value);
@@ -2099,9 +2019,7 @@ $(function () {
         $('#manage-resource-editDept').valid(); // trigger validation on select change
     });
 
-    /* -------------------------------------------------
-        ADD RESOURCE AJAX SUBMIT AND VALIDATION
-    --------------------------------------------------*/
+    // Add resource form validation & AJAX submit
     // Initialize jQuery Validation for Add resource
     $("#manage-resource-addForm").validate({
         errorElement: "span",
@@ -2138,8 +2056,8 @@ $(function () {
                 beforeSend: function () {
                     $('#manage-resource-addForm button[type="submit"]').prop('disabled', true).text("Saving...");
                     $('.error-msg').remove();  // remove old errors
+                    showLoader();
                 },
-
                 success: function (response) {
                     showNotification("Resource added successfully!", 'success');
 
@@ -2150,7 +2068,6 @@ $(function () {
                         refreshResourceTable();
                     }
                 },
-
                 error: function (xhr) {
                     if (xhr.status === 422) {
                         let errors = xhr.responseJSON.errors;
@@ -2162,17 +2079,15 @@ $(function () {
                     }
                     showNotification("Failed to add resource", "danger");
                 },
-
                 complete: function () {
                     $('#manage-resource-addForm button[type="submit"]').prop('disabled', false).html('<i class="fas fa-save me-2"></i> Save');
+                    hideLoader();
                 }
             });
         }
     });
 
-    /* -------------------------------------------------
-        UPDATE RESOURCE AJAX SUBMIT
-    --------------------------------------------------*/
+    // Update resource form validation & AJAX submit
     $("#manage-resource-editForm").validate({
         errorElement: "span",
         errorClass: "error",
@@ -2206,12 +2121,11 @@ $(function () {
                 data: formData,
                 contentType: false,
                 processData: false,
-
                 beforeSend: function () {
                     $('#manage-resource-editForm button[type="submit"]').prop('disabled', true).text("Updating...");
                     $('.error-msg').remove();
+                    showLoader();
                 },
-
                 success: function (response) {
                     showNotification("Resource updated successfully!", 'success');
 
@@ -2221,7 +2135,6 @@ $(function () {
                         refreshResourceTable();
                     }
                 },
-
                 error: function (xhr) {
                     if (xhr.status === 422) {
                         let errors = xhr.responseJSON.errors;
@@ -2233,29 +2146,25 @@ $(function () {
                     }
                     showNotification("Failed to update resource", "danger");
                 },
-
                 complete: function () {
                     $('#manage-resource-editForm button[type="submit"]').prop('disabled', false).html('<i class="fas fa-save me-2"></i> Update');
-                }
+                    hideLoader();
+                },
             });
         }
     });
 
-    // Auto Refresh After Save
+    // Helper to refresh resource table fragment after add/update
     function refreshResourceTable() {
         $('#resourceTable').load(location.href + " #resourceTable");
     }
 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ------------------------- Add / Edit Leave Modal ------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
-    //  ---------------------------------------------------------------------------------------------- 
+    /* ---------------------------------------------------------------------
+       Leave management: flatpickr init, validation, add/edit/delete leaves
+       --------------------------------------------------------------------- */
+    let companyHolidays = []; // list of company holidays used to disable dates in leave pickers
 
-    let companyHolidays = [];
-
+    // Fetch company holidays from API (used by leave datepicker)
     function fetchCompanyHolidays() {
         return $.get('/api/company-holidays')
             .done(res => {
@@ -2270,23 +2179,12 @@ $(function () {
         return date.getDay() === 0; // Sunday only
     }
 
-    // function getLeaveDayCount(leave) {
-    //     // Half day → always 0.5
-    //     if (leave.duration === 'half') {
-    //         return 0.5;
-    //     }
-
-    //     // Full day → calculate working days
-    //     return calculateWorkingDays(
-    //         new Date(leave.start_date),
-    //         new Date(leave.end_date)
-    //     );
-    // }
-
+    // Leaves use number_of_days on server; for frontend just parse float
     function getLeaveDayCount(leave) {
         return parseFloat(leave.number_of_days);
     }
 
+    // Calculate working days between two dates, excluding Sundays and company holidays
     function calculateWorkingDays(start, end) {
         let count = 0;
         let current = new Date(start);
@@ -2303,8 +2201,10 @@ $(function () {
         return count;
     }
 
+    // Flatpickr instances used in leave modal
     let leaveStartPicker, leaveEndPicker;
 
+    // Initialize leave flatpickr controls; destroy existing before re-init
     function initLeaveFlatpickr() {
 
         if (leaveStartPicker) {
@@ -2361,6 +2261,7 @@ $(function () {
         });
     }
 
+    // Open leave modal: fetch holidays then initialize pickers & load leaves
     function openLeaveModal() {
         fetchCompanyHolidays().then(() => {
             initLeaveFlatpickr();
@@ -2370,6 +2271,7 @@ $(function () {
 
     $('#manageLeaveModal').on('shown.bs.modal', openLeaveModal);
 
+    // Update leaveDaysText based on selected start/end and duration
     function updateLeaveDays() {
         const start = $('#leaveStart').val();
         const end = $('#leaveEnd').val();
@@ -2394,6 +2296,7 @@ $(function () {
         $('#leaveStart, #leaveEnd').valid();
     }
 
+    // When duration changes (half/full) apply UI rules
     function handleLeaveDurationChange() {
         const duration = $('#leaveDuration').val();
         const start = $('#leaveStart').val();
@@ -2427,28 +2330,20 @@ $(function () {
         checkLeaveOverlap();
     });
 
+    // Leaves state and editing id
     let leaves = [];
     let leaveEditingId = null;
 
-    $('#leaveResource').select2({
-        dropdownParent: $('#manageLeaveModal'),
-        width: '100%',
-        placeholder: 'Select resource',
-        allowClear: true
-    });
+    // Initialize select2 for leave modal selects
+    $('#leaveResource').select2({ dropdownParent: $('#manageLeaveModal'), width: '100%', placeholder: 'Select resource', allowClear: true });
+    $('#leaveType').select2({ dropdownParent: $('#manageLeaveModal'), width: '100%', placeholder: 'Select leave type', allowClear: true });
+    $('#leaveDuration').select2({ dropdownParent: $('#manageLeaveModal'), width: '100%', placeholder: 'Select duration', allowClear: true });
 
     /* Inside set placeholder in search dropdown select2 */
     $('#leaveResource').on('select2:open', function () {
         // Find the search input inside the dropdown
         let searchBox = $('.select2-container--open .select2-search__field');
         searchBox.attr('placeholder', 'Search resource');
-    });
-
-    $('#leaveType').select2({
-        dropdownParent: $('#manageLeaveModal'),
-        width: '100%',
-        placeholder: 'Select leave type',
-        allowClear: true
     });
 
     /* Inside set placeholder in search dropdown select2 */
@@ -2458,13 +2353,6 @@ $(function () {
         searchBox.attr('placeholder', 'Search leave type');
     });
 
-    $('#leaveDuration').select2({
-        dropdownParent: $('#manageLeaveModal'),
-        width: '100%',
-        placeholder: 'Select duration',
-        allowClear: true
-    });
-
     /* Inside set placeholder in search dropdown select2 */
     $('#leaveDuration').on('select2:open', function () {
         // Find the search input inside the dropdown
@@ -2472,11 +2360,11 @@ $(function () {
         searchBox.attr('placeholder', 'Search duration');
     });
 
+    // Validate leave form with jQuery Validate
     $("#leaveForm").validate({
         errorElement: "span",
         errorClass: "error",
         ignore: [],
-
         highlight: function (element) {
             $(element).addClass("is-invalid");
 
@@ -2486,7 +2374,6 @@ $(function () {
                     .addClass('is-invalid');
             }
         },
-
         unhighlight: function (element) {
             $(element).removeClass("is-invalid");
 
@@ -2496,7 +2383,6 @@ $(function () {
                     .removeClass('is-invalid');
             }
         },
-
         errorPlacement: function (error, element) {
             if ($(element).hasClass('select2-hidden-accessible')) {
                 error.insertAfter(element.next('.select2'));
@@ -2527,7 +2413,6 @@ $(function () {
                 maxlength: 200
             }
         },
-
         messages: {
             resource_id: "Please select a resource",
             type: "Please select leave type",
@@ -2539,7 +2424,6 @@ $(function () {
                 maxlength: "Please enter no more than 200 characters"
             }
         },
-
         submitHandler: function () {
             saveLeave();
         }
@@ -2550,6 +2434,7 @@ $(function () {
         $('#leaveRemark').valid();
     });
 
+    // Load leaves list for leave modal
     function loadLeaves() {
         $.get('/leaves', res => {
             leaves = res;
@@ -2561,6 +2446,7 @@ $(function () {
         });
     }
 
+    // Render leaves list in leave modal
     function renderLeaves() {
         const container = $('#leaveList');
 
@@ -2597,8 +2483,8 @@ $(function () {
         }).join(''));
     }
 
+    // Save or update leave
     function saveLeave() {
-
         let data = {
             resource_id: $('#leaveResource').val(),
             type: $('#leaveType').val(),
@@ -2608,16 +2494,22 @@ $(function () {
             duration: $('#leaveDuration').val()
         };
 
-
         if (leaveEditingId) {
             $.ajax({
                 url: `/leaves/${leaveEditingId}`,
                 type: 'PUT',
                 data,
+                beforeSend: () => {
+                    // Optionally show loader
+                    showLoader();
+                },
                 success: res => {
                     resetLeaveForm();
                     loadLeaves();
                     showNotification(res.message || "Leave updated", "success");
+                },
+                complete: () => {
+                    hideLoader();
                 }
             });
         } else {
@@ -2630,6 +2522,7 @@ $(function () {
         }
     }
 
+    // Edit leave button: populate form for editing
     $('#leaveList').on('click', '.leave-edit', function () {
 
         const id = $(this).data('id');
@@ -2637,17 +2530,12 @@ $(function () {
         if (!l) return;
 
         leaveEditingId = id;
-
-        // leaveStartPicker.set('minDate', l.start_date);
-        // leaveEndPicker.set('minDate', l.start_date);
-
         leaveStartPicker.setDate(l.start_date, true);
         leaveEndPicker.setDate(l.end_date, true);
 
         $('#leaveResource').val(l.resource_id).trigger('change');
         $('#leaveType').val(l.type).trigger('change');
         $('#leaveDuration').val(l.duration ?? 'full').trigger('change');
-
         $('#leaveRemark').val(l.remark);
 
         // Apply duration rules
@@ -2660,6 +2548,7 @@ $(function () {
         $('#leaveBtnText').text('Update Leave');
     });
 
+    // Delete leave with fade out
     $('#leaveList').on('click', '.leave-delete', function () {
         const id = $(this).data('id');
         const item = $(this).closest('.holidays-item');
@@ -2667,6 +2556,10 @@ $(function () {
         $.ajax({
             url: `/leaves/${id}`,
             type: 'DELETE',
+            beforeSend: () => {
+                // Optionally show loader
+                showLoader();
+            },
             success: res => {
                 item.fadeOut(300, function () {
                     $(this).remove();
@@ -2675,10 +2568,17 @@ $(function () {
                     }
                 });
                 showNotification(res.message || "Leave deleted", "success");
+            },
+            error: () => {
+                showNotification("Failed to delete leave", "danger");
+            },
+            complete: () => {
+                hideLoader();
             }
         });
     });
 
+    // Reset leave form UI and state
     function resetLeaveForm() {
         leaveEditingId = null;
         $('#leaveForm')[0].reset();
@@ -2696,12 +2596,13 @@ $(function () {
             .val(null).trigger('change');
     }
 
+    // Ensure select2 triggers validation on change
     $('#leaveResource, #leaveType, #leaveDuration').on('change', function () {
         $(this).valid();
     });
 
+    // Reset leave modal on hide
     $('#manageLeaveModal').on('hidden.bs.modal', function () {
-
         // Reset form
         $('#leaveForm')[0].reset();
 
@@ -2713,7 +2614,6 @@ $(function () {
         if (leaveStartPicker && leaveEndPicker) {
             leaveStartPicker.clear();
             leaveEndPicker.clear();
-
             leaveStartPicker.set('minDate', new Date());
             leaveEndPicker.set('minDate', new Date());
         }
@@ -2733,11 +2633,13 @@ $(function () {
         $('#leaveForm button[type=submit]').prop('disabled', false);
     });
 
+    // On show: re-init pickers and load leaves
     $('#manageLeaveModal').on('shown.bs.modal', function () {
         initLeaveFlatpickr();
         loadLeaves();
     });
 
+    // Check if a new leave overlaps existing ones for the same resource
     function checkLeaveOverlap() {
         const resource = $('#leaveResource').val();
         const start = $('#leaveStart').val();

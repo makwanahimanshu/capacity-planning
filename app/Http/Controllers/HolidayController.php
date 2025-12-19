@@ -60,42 +60,6 @@ class HolidayController extends Controller
     /**
      * Update a specific holiday
      */
-    // public function update(Request $request, $id)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'date'         => 'required|date',
-    //         'description'  => 'required|string|min:2|max:500',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['errors' => $validator->errors()], 422);
-    //     }
-
-    //     $holiday = Holiday::find($id);
-    //     if (!$holiday) {
-    //         return response()->json(['message' => 'Holiday not found'], 404);
-    //     }
-
-    //     // Check duplicate date (for others)
-    //     $exists = Holiday::where('date', $request->date)
-    //         ->where('id', '!=', $id)
-    //         ->exists();
-
-    //     if ($exists) {
-    //         return response()->json(['message' => 'Another holiday already exists on this date'], 409);
-    //     }
-
-    //     $holiday->update([
-    //         'date' => $request->date,
-    //         'description' => $request->description,
-    //     ]);
-
-    //     return response()->json([
-    //         'message' => 'Holiday updated successfully',
-    //         'data' => $holiday
-    //     ]);
-    // }
-
     public function update(Request $request, $id)
     {
         $holiday = Holiday::find($id);
@@ -132,7 +96,6 @@ class HolidayController extends Controller
             'data' => $holiday
         ]);
     }
-
 
     /**
      * Hard delete a holiday

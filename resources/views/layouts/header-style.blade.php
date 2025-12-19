@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head></head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -14,6 +14,9 @@
 
     {{-- Font awesome CSS --}}
     <link href="{{ asset('css/all.min.css') }}?v={{ config('constants.cache_ver') }}" rel="stylesheet">
+
+    {{-- Common styles CSS --}}
+    <link href="{{ asset('css/common-styles.css') }}?v={{ config('constants.cache_ver') }}" rel="stylesheet">
 
     <!-- Include flatpickr CSS & JS -->
     <link href="{{ asset('css/flatpickr.min.css') }}?v={{ config('constants.cache_ver') }}" rel="stylesheet">

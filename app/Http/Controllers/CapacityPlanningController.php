@@ -13,7 +13,12 @@ use Auth, Validator, DB, Exception, Log, Str;
 
 class CapacityPlanningController extends Controller
 {
-    private $dailyWorkingHours = 8;
+    private int $dailyWorkingHours;
+
+    public function __construct()
+    {
+        $this->dailyWorkingHours = config('constants.daily_working_hours');
+    }
 
     /**
      * Display main view for Capacity Planning module
@@ -52,8 +57,19 @@ class CapacityPlanningController extends Controller
         return response()->json($resources);
     }
 
-    private function getMaxHoursMonth($month, $hoursPerDay = 8)
+    /**
+     * Returns the maximum available working hours for a given month.
+     * 
+     * This function takes into account the number of working days in the month
+     * (i.e., days that are not weekends) and the number of hours per day.
+     * 
+     * @param string $month Month in the format YYYY-MM
+     * @param int $dailyWorkingHours Number of hours per day (default: 8)
+     * @return int Maximum available working hours for the given month
+     */
+    private function getMaxHoursMonth($month, $dailyWorkingHours)
     {
+
         [$year, $m] = explode('-', $month);
         $daysInMonth = Carbon::createFromDate($year, $m, 1)->daysInMonth;
         $workingDays = 0;
@@ -65,9 +81,19 @@ class CapacityPlanningController extends Controller
             }
         }
 
-        return $workingDays * $hoursPerDay;
+        return $workingDays * $dailyWorkingHours;
     }
 
+    /**
+     * Retrieves all leaves taken by a resource in a given month.
+     * 
+     * The response will contain an array of dates on which the resource took a leave,
+     * as well as the total number of leave days taken in the month.
+     * 
+     * @param int $resourceId ID of the resource
+     * @param string $month Month in the format YYYY-MM
+     * @return \Illuminate\Http\Response
+     */
     public function getLeavesByMonth($resourceId, $month)
     {
         $start = Carbon::parse($month . '-01');
@@ -117,6 +143,15 @@ class CapacityPlanningController extends Controller
         ]);
     }
 
+    /**
+     * Retrieves all allocations for a given resource and month.
+     * If the project ID is provided in the request, only allocations for that project will be returned.
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param int $resourceId
+     * @param string $month
+     * @return \Illuminate\Http\Response
+     */
     public function getAssignments(Request $request, $resourceId, $month)
     {
         $projectId = $request->query('project_id'); // optional
@@ -269,7 +304,7 @@ class CapacityPlanningController extends Controller
     }
 
     /**
-     * Bulk save allocations for a resource for one month
+     * Save multiple allocations for a resource in one request
      */
     public function saveBulkAllocations(Request $request)
     {
@@ -371,7 +406,10 @@ class CapacityPlanningController extends Controller
     }
 
     /**
-     * Save allocations for multiple resources and projects at once
+     * Save a bulk of allocations for multiple resources at once.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\Response
      */
     public function saveMegaBulkAllocations(Request $request)
     {
@@ -452,7 +490,12 @@ class CapacityPlanningController extends Controller
         }
     }
 
-
+    /**
+     * Store a newly created project in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
     public function store(Request $request)
     {
         try {
@@ -497,8 +540,7 @@ class CapacityPlanningController extends Controller
 
             // --- Allocation logic for each selected resource ---
             $month = Carbon::parse($request->start_date)->format('Y-m');
-            $hoursPerDay = 8;
-            $maxHoursMonth = $this->getMaxHoursMonth($month, $hoursPerDay);
+            $maxHoursMonth = $this->getMaxHoursMonth($month, $this->dailyWorkingHours);
 
             foreach ($request->resource_ids as $resourceId) {
                 $resource = Resource::find($resourceId);
@@ -723,7 +765,6 @@ class CapacityPlanningController extends Controller
             ]);
 
             // --- Update Allocations ---
-            $hoursPerDay = 8;
             $holidays = DB::table('holidays')->pluck('date')->toArray(); // global holidays
 
             $projectStart = Carbon::parse($request->start_date);
@@ -738,10 +779,22 @@ class CapacityPlanningController extends Controller
                 ->delete();
 
             foreach ($currentResourceIds as $resourceId) {
-                $allocation = ResourceProjectAllocation::firstOrNew([
-                    'resource_id' => $resourceId,
-                    'project_id' => $project->id,
-                ]);
+                // $allocation = ResourceProjectAllocation::firstOrNew([
+                //     'resource_id' => $resourceId,
+                //     'project_id' => $project->id,
+                // ]);
+                $allocation = ResourceProjectAllocation::withTrashed()
+                ->updateOrCreate(
+                    [
+                        'resource_id' => $resourceId,
+                        'project_id'  => $project->id,
+                    ],
+                    [
+                        'daily_hours'       => json_encode([]),
+                        'months_and_hours' => json_encode([]),
+                        'deleted_at'        => null,
+                    ]
+                );
 
                 $existingDaily = json_decode($allocation->daily_hours ?? '[]', true) ?: [];
                 $existingMap = collect($existingDaily)->pluck('hours', 'date')->toArray();

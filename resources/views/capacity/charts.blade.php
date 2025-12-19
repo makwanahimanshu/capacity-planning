@@ -10,6 +10,18 @@
 
 @section('content')
 <div class="dashboard-container">
+    <!-- Global Charts Loader -->
+    <div id="chartsLoaderOverlay" aria-hidden="true" style="display:none;">
+        <div class="loader-backdrop"></div>
+
+        <div id="chartsLoader" class="loader-spinner">
+            <div class="loader" role="status" aria-hidden="true"></div>
+            <p class="visually-hidden" aria-live="polite">
+                Loading, please wait…
+            </p>
+        </div>
+    </div>
+
     <!-- Header with Month Selector -->
     {{-- <div class="dashboard-header d-flex justify-content-between align-items-center flex-wrap gap-3">
         <!-- Left: Back + Title -->
@@ -84,7 +96,7 @@
     <div id="chartsSection">
         <!-- Top 3 Charts -->
         <div class="row">
-            <div class="col-lg-4 col-md-12">
+            <div class="col-lg-6 col-md-12">
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3 class="chart-title">Capacity</h3>
@@ -115,7 +127,7 @@
                 </div>
             </div>
 
-            <div class="col-lg-4 col-md-12">
+            <div class="col-lg-6 col-md-12">
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3 class="chart-title">Dept-wise Available Hours</h3>
@@ -126,8 +138,10 @@
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div class="col-lg-4 col-md-12">
+        <div class="row g-3">
+            <div class="col-12">
                 <div class="chart-card">
                     <div class="chart-header">
                         <h3 class="chart-title">Under-utilized Resources</h3>
@@ -410,6 +424,21 @@ document.getElementById('monthSelectForCharts').addEventListener('change', funct
 //     }
 // }
 
+// Single loader pair for all AJAX/fetch usage in this file.
+function showLoader() {
+    $('#chartsLoaderOverlay')
+        .stop(true, true)
+        .fadeIn(150)
+        .attr('aria-hidden', 'false');
+}
+
+function hideLoader() {
+    $('#chartsLoaderOverlay')
+        .stop(true, true)
+        .fadeOut(150)
+        .attr('aria-hidden', 'true');
+}
+
 async function generateReport() {
 
     if (isLoading) return;
@@ -434,6 +463,8 @@ async function generateReport() {
     btn.innerText = 'Loading...';
     isLoading = true;
 
+    showLoader();
+
     try {
         let res = await fetch(url);
         let data = await res.json();
@@ -445,6 +476,7 @@ async function generateReport() {
         btn.disabled = false;
         btn.innerText = 'Generate Report';
         isLoading = false;
+        hideLoader();
     }
 }
 
