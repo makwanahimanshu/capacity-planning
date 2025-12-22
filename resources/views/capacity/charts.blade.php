@@ -294,6 +294,27 @@
                 </table>
             </div>
         </div>
+
+        <!-- Dashboard Footer Info -->
+        <div class="cd-footer-info">
+            <div class="cd-footer-content">
+                <span class="cd-footer-text">
+                    Developed by <strong>Himanshu Makwana</strong>
+                </span>
+
+                <span class="cd-footer-divider">•</span>
+
+                <span class="cd-footer-text">
+                    Last updated: {{ now()->format('d M Y') }}
+                </span>
+
+                <span class="cd-footer-divider">•</span>
+
+                <span class="cd-footer-version">
+                    v1.0
+                </span>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

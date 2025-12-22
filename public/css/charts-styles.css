@@ -772,3 +772,54 @@ input#monthSelectForCharts {
         width: 100%;
     }
 }
+
+
+/* =========================
+   Capacity Dashboard Footer
+   ========================= */
+
+.cd-footer-info {
+    margin-top: 40px;
+    padding: 14px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: transparent;
+}
+
+.cd-footer-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 13px;
+    color: #9aa4b2;
+}
+
+.cd-footer-text strong {
+    color: #7f78d0;
+    font-weight: 500;
+}
+
+.cd-footer-divider {
+    opacity: 0.5;
+}
+
+.cd-footer-version {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #7f78d0;
+}
+
+/* Mobile Friendly */
+@media (max-width: 576px) {
+    .cd-footer-content {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .cd-footer-divider {
+        display: none;
+    }
+}
