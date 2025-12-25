@@ -66,6 +66,7 @@
             <div class="filter-group">
                 <select id="quickRangeSelect" class="filter-control">
                     <option value="">Quick Range</option>
+                    <option value="tw">This Week</option>
                     <option value="1w">Last 1 Week</option>
                     <option value="2w">Last 2 Weeks</option>
                     <option value="3w">Last 3 Weeks</option>
@@ -360,6 +361,13 @@ document.getElementById('quickRangeSelect').addEventListener('change', function 
     let start = new Date(today);
 
     switch (value) {
+        case 'tw': // This Week
+            let day = today.getDay(); // 0 (Sun) - 6 (Sat)
+            let diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday start
+            // start = new Date(today.setDate(diff));
+            start = new Date(today.getFullYear(), today.getMonth(), diff);
+            start.setDate(start.getDate() + 1);
+            break;
         case '1w':
             start.setDate(today.getDate() - 7);
             break;

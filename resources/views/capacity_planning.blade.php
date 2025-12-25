@@ -185,6 +185,13 @@ $(function () {
        ------------------------- */
     const HOURS_PER_DAY = {{ config('constants.daily_working_hours') }};
     const MAX_HOURS_PER_DAY = {{ config('constants.max_hours_per_day') }};
+    const HALF_DAY_HOURS = {{ config('constants.half_day_hours') }};
+
+    function getMaxAllowedHours($input) {
+        return $input.hasClass('half-leave-day')
+            ? HALF_DAY_HOURS
+            : MAX_HOURS_PER_DAY;
+    }
 
     /* -------------------------
        State variables / cached jQuery objects
@@ -356,7 +363,11 @@ $(function () {
         let invalid = false;
         $table.find('.day-input').each(function() {
             let num = parseFloat($(this).val());
-            if (num > MAX_HOURS_PER_DAY) {
+            let maxAllowed = $(this).hasClass('half-leave-day')
+                ? HALF_DAY_HOURS
+                : MAX_HOURS_PER_DAY;
+
+            if (num > maxAllowed) {
                 invalid = true;
                 return false;
             }
@@ -467,7 +478,7 @@ $(function () {
             </div>
         `);
         $('body').append(notification);
-        setTimeout(()=>notification.alert('close'), 2000);
+        setTimeout(()=>notification.alert('close'), 3000);
     }
 
     /* -------------------------
@@ -746,6 +757,7 @@ $(function () {
                 // Half-day leave -> enabled but marked
                 $input.prop('disabled', false)
                     .addClass('half-leave-day')
+                    .attr('max', HALF_DAY_HOURS)
                     .attr('title','Half Day Leave');
 
             } else if (holidays.some(h => h.date === dateStr)) {
@@ -778,52 +790,64 @@ $(function () {
         let $deleteBtn     = $row.find('.delete-row-btn');
 
         // Apply value to all enabled inputs in row and save to server
-        $applyAllBtn.on('click', function() {
+        $applyAllBtn.on('click', function () {
             let value = parseFloat($applyAllInput.val());
+
             if (isNaN(value) || value < 0 || value > MAX_HOURS_PER_DAY) {
-                showNotification(`Please enter a valid number between 0 and ${MAX_HOURS_PER_DAY} hours`, 'danger');
-                $applyAllInput.focus().select();
+                showNotification(
+                    `Please enter a valid number between 0 and ${MAX_HOURS_PER_DAY} hours`,
+                    'danger'
+                );
                 return;
             }
 
             let projectId = $row.data('project-id');
-            let month     = $('#monthSelect').val();
-
-            let projectStart = new Date($row.data('project-start'));
-            let projectEnd   = new Date($row.data('project-end'));
-            let totalHours   = parseFloat($row.data('project-total-hours')) || 0;
-
-            let allocatedSoFar = 0;
-            let daily_hours = [];
-            // dayInputs.forEach($input => {
-            //     if (!$input.prop('disabled')) {
-            //         let day = $input.data('day');
-            //         let dateStr = `${month}-${String(day).padStart(2, '0')}`;
-            //         daily_hours.push({ date: dateStr, hours: value });
-            //         $input.val(value); // update UI
-            //     }
-            // });
+            let month = $('#monthSelect').val();
             let selectedWeek = $row.find('.tool-week-select').val();
 
-            dayInputs.forEach($input => {
-                if ($input.prop('disabled')) return;
+            let daily_hours = [];
+            let halfDaySkipped = false;
+            let halfDayApplied = false;
+
+            /* -------------------------
+            APPLY LOGIC
+            ------------------------- */
+            for (let $input of dayInputs) {
+                if ($input.prop('disabled')) continue;
 
                 let inputWeek = $input.data('week');
-
                 if (selectedWeek !== 'all' && Number(selectedWeek) !== inputWeek) {
-                    return;
+                    continue;
                 }
 
+                // HALF DAY HANDLING
+                if ($input.hasClass('half-leave-day')) {
+                    if (value <= HALF_DAY_HOURS) {
+                        // apply
+                        let day = $input.data('day');
+                        let dateStr = `${month}-${String(day).padStart(2, '0')}`;
+                        $input.val(value);
+                        daily_hours.push({ date: dateStr, hours: value });
+                        halfDayApplied = true;
+                    } else {
+                        // ignore
+                        halfDaySkipped = true;
+                    }
+                    continue;
+                }
+
+                // FULL DAY
                 let day = $input.data('day');
                 let dateStr = `${month}-${String(day).padStart(2, '0')}`;
-
-                daily_hours.push({ date: dateStr, hours: value });
                 $input.val(value);
-            });
+                daily_hours.push({ date: dateStr, hours: value });
+            }
 
             updateResourceAllocation(resourceId);
 
-            // Save the applied hours for this row via AJAX
+            /* -------------------------
+            SAVE TO SERVER
+            ------------------------- */
             $.ajax({
                 url: "{{ route('capacity-planning.allocations.save') }}",
                 method: "POST",
@@ -834,46 +858,24 @@ $(function () {
                     daily_hours: JSON.stringify(daily_hours),
                     _token: "{{ csrf_token() }}"
                 },
-                beforeSend: function() {
-                    showLoader();
-                },
-                success: function(res) {
+                beforeSend: showLoader,
+                success: function (res) {
                     if (res.success) {
-                        showNotification('Hours applied and saved successfully!', 'success');
-
-                        // Reset UI to match backend’s final accepted allocations
-                        let accepted = res.data.daily_hours ? JSON.parse(res.data.daily_hours) : [];
-                        let acceptedMap = {};
-                        accepted.forEach(d => { acceptedMap[d.date] = d.hours; });
-
-                        // dayInputs.forEach($input => {
-                        //     let day = $input.data('day');
-                        //     let dateStr = `${month}-${String(day).padStart(2, '0')}`;
-                        //     if (acceptedMap[dateStr] !== undefined) {
-                        //         $input.val(acceptedMap[dateStr]);
-                        //     } else {
-                        //         $input.val('');
-                        //     }
-                        // });
-                        dayInputs.forEach($input => {
-                            let day = $input.data('day');
-                            let dateStr = `${month}-${String(day).padStart(2, '0')}`;
-
-                            if (acceptedMap.hasOwnProperty(dateStr)) {
-                                $input.val(acceptedMap[dateStr]);
-                            }
-                        });
-
+                        let msg = 'Hours applied and saved successfully!';
+                        if (halfDaySkipped && !halfDayApplied) {
+                            msg += ' Half-day leave dates were excluded.';
+                        } else if (halfDaySkipped && halfDayApplied) {
+                            msg += ' Some half-day dates were excluded.';
+                        }
+                        showNotification(msg, 'success');
                     } else {
                         showNotification(res.message || 'Error saving allocations', 'danger');
                     }
                 },
-                error: function() {
+                error: function () {
                     showNotification('Error saving allocations', 'danger');
                 },
-                complete: function() {
-                    hideLoader();
-                }
+                complete: hideLoader
             });
         });
 
@@ -896,7 +898,8 @@ $(function () {
                 if (/^\d+(\.\d+)?$/.test(val)) {
                     let num = parseFloat(val);
                     // let num = parseInt(val, 10);
-                    if (num >= 0 && num <= MAX_HOURS_PER_DAY) {
+                    // if (num >= 0 && num <= MAX_HOURS_PER_DAY) {
+                    if (num >= 0 && num <= getMaxAllowedHours($this)) {
                         oldVal = val;
                         $this.removeClass('invalid-input');
                         return;
@@ -905,7 +908,12 @@ $(function () {
 
                 // Invalid → show notification and revert after delay
                 $this.addClass('invalid-input');
-                showNotification(`Please enter a valid number between 0 and ${MAX_HOURS_PER_DAY} hours`, 'danger');
+                // showNotification(`Please enter a valid number between 0 and ${MAX_HOURS_PER_DAY} hours`, 'danger');
+                let maxAllowed = getMaxAllowedHours($this);
+                showNotification(
+                    `Please enter a valid number between 0 and ${maxAllowed} hours`,
+                    'danger'
+                );
 
                 clearTimeout($this.data('timeoutId'));
                 let timeoutId = setTimeout(() => {
@@ -973,6 +981,19 @@ $(function () {
                     return;
                 }
 
+                // EXTRA half-day check
+                let hasHalfDay = dayInputs.some($input =>
+                    !$input.prop('disabled') && $input.hasClass('half-leave-day')
+                );
+
+                if (hasHalfDay && value > HALF_DAY_HOURS) {
+                    showNotification(
+                        `Half-day leave detected. Max allowed is ${HALF_DAY_HOURS} hours`,
+                        'danger'
+                    );
+                    return;
+                }
+
                 $applyAllBtn.click(); // valid, trigger apply
             }
         });
@@ -1022,7 +1043,8 @@ $(function () {
 
             // Parse numeric value, guard range
             let val = parseFloat($input.val());
-            if (isNaN(val) || val < 0 || val > MAX_HOURS_PER_DAY) val = 0;
+            let maxAllowed = getMaxAllowedHours($input);
+            if (isNaN(val) || val < 0 || val > maxAllowed) val = 0;
             $input.val(val); // force valid value in UI
             totalAllocated += val;
         });

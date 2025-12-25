@@ -743,13 +743,13 @@ class CapacityPlanningController extends Controller
                 ], 422);
             }
 
-            // Detect if dates changed
+            // Detect date change
             $dateChanged = (
                 $request->start_date !== $project->start_date ||
                 $request->end_date !== $project->end_date
             );
 
-            // Update project basic data
+            // Update project master data
             $project->update([
                 'name' => $request->name,
                 'total_hours' => $request->total_hours,
@@ -764,8 +764,8 @@ class CapacityPlanningController extends Controller
                 'updated_at' => Carbon::now(),
             ]);
 
-            // --- Update Allocations ---
-            $holidays = DB::table('holidays')->pluck('date')->toArray(); // global holidays
+            // Prepare date range
+            $holidays = DB::table('holidays')->pluck('date')->toArray();
 
             $projectStart = Carbon::parse($request->start_date);
             $projectEnd   = Carbon::parse($request->end_date);
@@ -773,28 +773,32 @@ class CapacityPlanningController extends Controller
 
             $currentResourceIds = $request->resource_ids;
 
-            // Remove allocations of resources no longer assigned
+            // Remove allocations of unassigned resources
             ResourceProjectAllocation::where('project_id', $project->id)
                 ->whereNotIn('resource_id', $currentResourceIds)
                 ->delete();
 
             foreach ($currentResourceIds as $resourceId) {
-                // $allocation = ResourceProjectAllocation::firstOrNew([
-                //     'resource_id' => $resourceId,
-                //     'project_id' => $project->id,
-                // ]);
-                $allocation = ResourceProjectAllocation::withTrashed()
-                ->updateOrCreate(
-                    [
-                        'resource_id' => $resourceId,
-                        'project_id'  => $project->id,
-                    ],
-                    [
-                        'daily_hours'       => json_encode([]),
-                        'months_and_hours' => json_encode([]),
-                        'deleted_at'        => null,
-                    ]
-                );
+
+                // DO NOT overwrite existing allocation
+                $allocation = ResourceProjectAllocation::withTrashed()->firstOrNew([
+                    'resource_id' => $resourceId,
+                    'project_id'  => $project->id,
+                ]);
+
+                $isNewAllocation = !$allocation->exists;
+
+                // Initialize only for NEW resource
+                if ($isNewAllocation) {
+                    $allocation->daily_hours = json_encode([]);
+                    $allocation->months_and_hours = json_encode([]);
+                    $allocation->deleted_at = null;
+                }
+
+                // If existing resource AND dates didn't change → preserve as is
+                if (!$isNewAllocation && !$dateChanged) {
+                    continue;
+                }
 
                 $existingDaily = json_decode($allocation->daily_hours ?? '[]', true) ?: [];
                 $existingMap = collect($existingDaily)->pluck('hours', 'date')->toArray();
@@ -803,34 +807,47 @@ class CapacityPlanningController extends Controller
 
                 foreach ($period as $date) {
                     $dateStr = $date->toDateString();
-                    if ($date->isWeekend() || in_array($dateStr, $holidays)) continue;
 
-                    // If existing allocation exists, use it; otherwise default 0
-                    $hours = $existingMap[$dateStr] ?? 0;
+                    if ($date->isWeekend() || in_array($dateStr, $holidays)) {
+                        continue;
+                    }
+
                     $dailyHours[] = [
-                        'date' => $dateStr,
-                        'hours' => $hours,
+                        'date'  => $dateStr,
+                        'hours' => $existingMap[$dateStr] ?? 0, // preserve hours
                     ];
                 }
 
-                // Recalculate months_and_hours based on dailyHours
+                // Recalculate months_and_hours
                 $monthData = [];
+
                 foreach ($dailyHours as $d) {
-                    $m = substr($d['date'], 0, 7);
-                    if (!isset($monthData[$m])) $monthData[$m] = ['allocated_hours' => 0, 'project_days' => 0];
-                    $monthData[$m]['allocated_hours'] += (float)$d['hours'];
-                    $monthData[$m]['project_days']++;
+                    $month = substr($d['date'], 0, 7);
+
+                    if (!isset($monthData[$month])) {
+                        $monthData[$month] = [
+                            'allocated_hours' => 0,
+                            'project_days' => 0
+                        ];
+                    }
+
+                    $monthData[$month]['allocated_hours'] += (float)$d['hours'];
+                    $monthData[$month]['project_days']++;
                 }
 
                 $monthsAndHours = [];
-                foreach ($monthData as $mth => $data) {
-                    $totalHours = $this->getMaxHoursMonth($mth, $this->dailyWorkingHours);
+
+                foreach ($monthData as $month => $data) {
+                    $totalHours = $this->getMaxHoursMonth($month, $this->dailyWorkingHours);
                     $allocated = $data['allocated_hours'];
+
                     $monthsAndHours[] = [
-                        'month' => $mth,
+                        'month' => $month,
                         'leave_days' => 0,
                         'total_hours' => $totalHours,
-                        'utilization' => $totalHours ? round(($allocated / $totalHours) * 100, 1) : 0,
+                        'utilization' => $totalHours
+                            ? round(($allocated / $totalHours) * 100, 1)
+                            : 0,
                         'allocated_hours' => $allocated,
                         'available_hours' => max(0, $totalHours - $allocated),
                     ];
@@ -852,6 +869,7 @@ class CapacityPlanningController extends Controller
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Project Update Error: ' . $e->getMessage() . ' Line: ' . $e->getLine());
+
             return response()->json([
                 'status' => 500,
                 'message' => 'Something went wrong: ' . $e->getMessage()
