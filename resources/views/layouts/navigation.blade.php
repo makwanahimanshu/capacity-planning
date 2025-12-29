@@ -1,3 +1,9 @@
+<style>
+    img.main-logo {
+        height: 50px;
+        width: auto;
+    }
+</style>
 <nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -12,9 +18,10 @@
                 <div class="shrink-0 flex items-center">
                     <a href="{{ route('dashboard') }}" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <div class="border-2 border-purple-600 p-2 rounded-lg">
-                            <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {{-- <svg class="h-8 w-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                            </svg>
+                            </svg> --}}
+                            <img class="main-logo" src="{{ asset('images/main_logo.svg') }}" alt="Main logo" title="Capacity Tracker" />
                         </div>
                         {{-- <span class="text-xl font-bold text-gray-800">{{ config('app.name') }}</span> --}}
                     </a>

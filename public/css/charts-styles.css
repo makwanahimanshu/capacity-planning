@@ -350,7 +350,7 @@ body {
     color: #ffffff;
     position: sticky;
     top: 0;
-    background-color: #6e66c9e0; /* light gray background to stand out */
+    background-color: #6e66c9;
     z-index: 5;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
@@ -582,6 +582,11 @@ input#monthSelectForCharts {
 }
 
 .project-row:hover .toggle-icon {
+    background: var(--primary);
+    color: #ffffff;
+}
+
+.resource-row:hover .toggle-icon {
     background: var(--primary);
     color: #ffffff;
 }
@@ -822,4 +827,84 @@ input#monthSelectForCharts {
     .cd-footer-divider {
         display: none;
     }
+}
+
+/* =========================
+    Capacity Dashboard Child Table
+   ========================= */
+
+td.child-table-td {
+    padding: 12px 76px !important;
+}
+
+.toggle-icon {
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 15px;
+}
+
+.child-table-td {
+    background: #f9fafb;
+    padding: 12px;
+}
+
+.nested-table th {
+    background: #eef2f7;
+    font-size: 13px;
+}
+
+/* =========================
+    Duration Info Tooltip
+   ========================= */
+
+/* Wrapper */
+.duration-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Duration text */
+.duration-text {
+    font-size: 13px;
+    color: #374151; /* slate-700 */
+}
+
+/* Info icon wrapper */
+.info-icon-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    color: #6b7280; /* gray-500 */
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+/* Icon */
+.info-icon-wrapper i {
+    font-size: 14px;
+}
+
+/* Hover & focus */
+.info-icon-wrapper:hover{
+    color: #6e66c9; /* blue-600 */
+    transform: scale(1.1);
+    outline: none;
+}
+
+/* Tooltip box (your existing floating-tooltip) */
+.floating-tooltip {
+    position: fixed;
+    background: #2d3436;
+    color: #fff;
+    padding: 8px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+    white-space: pre-line;
+    z-index: 100000; /* Above sticky header */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    pointer-events: none;
+    max-width: 260px;
 }

@@ -186,6 +186,7 @@
                 <table class="resource-table">
                     <thead>
                         <tr>
+                            <th></th>
                             <th>Employee</th>
                             <th>Department</th>
                             <th>Total Hours</th>
@@ -303,17 +304,17 @@
                     Developed by <strong>Himanshu Makwana</strong>
                 </span>
 
-                <span class="cd-footer-divider">•</span>
+                {{-- <span class="cd-footer-divider">•</span>
 
                 <span class="cd-footer-text">
-                    Last updated: {{ now()->format('d M Y') }}
+                    Developed on: <strong>17 Sep 2025</strong>
                 </span>
 
                 <span class="cd-footer-divider">•</span>
 
                 <span class="cd-footer-version">
                     v1.0
-                </span>
+                </span> --}}
             </div>
         </div>
     </div>
@@ -638,6 +639,67 @@ function renderDashboard(data) {
     holidayReportTable(holidays);
 }
 
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    let tooltip = null;
+
+    document.body.addEventListener('mouseover', function (e) {
+        const target = e.target.closest('.duration-tooltip');
+        if (!target || !target.dataset.tooltip) return;
+
+        if (tooltip) return; // prevent duplicate tooltip
+
+        tooltip = document.createElement('div');
+        tooltip.className = 'floating-tooltip';
+        tooltip.textContent = target.dataset.tooltip;
+        document.body.appendChild(tooltip);
+
+        positionTooltip(e);
+    });
+
+    document.body.addEventListener('mousemove', function (e) {
+        if (!tooltip) return;
+        positionTooltip(e);
+    });
+
+    document.body.addEventListener('mouseout', function (e) {
+        const related = e.relatedTarget;
+        if (
+            !tooltip ||
+            (related && related.closest && related.closest('.duration-tooltip'))
+        ) {
+            return;
+        }
+
+        tooltip.remove();
+        tooltip = null;
+    });
+
+    function positionTooltip(e) {
+        if (!tooltip) return;
+
+        const offset = 12;
+        let x = e.clientX + offset;
+        let y = e.clientY + offset;
+
+        const rect = tooltip.getBoundingClientRect();
+
+        // Prevent viewport overflow
+        if (x + rect.width > window.innerWidth) {
+            x = e.clientX - rect.width - offset;
+        }
+        if (y + rect.height > window.innerHeight) {
+            y = e.clientY - rect.height - offset;
+        }
+
+        tooltip.style.left = x + 'px';
+        tooltip.style.top  = y + 'px';
+    }
+});
+
+
+
 // Table 1: Resource List -----------------------------------------------------------------
 function renderTable(resources) {
     // let renderTableBody = document.getElementById('resourceTableBody');
@@ -692,7 +754,13 @@ function renderTable(resources) {
         else if (r.utilization < 50) { statusClass = 'status-under'; statusText = 'Under'; } // optional threshold
 
         return `
-            <tr>
+            <tr class="resource-row" data-resource-id="${r.id}">
+                <td class="text-center">
+                    ${r.projects?.length ? `
+                        <span class="toggle-icon"
+                            onclick="toggleResourceProjects(${r.id}, this)">+</span>
+                    ` : ''}
+                </td>
                 <td>${r.name}</td>
                 <td>${r.department}</td>
                 <td>${r.total_hours}</td>
@@ -703,11 +771,60 @@ function renderTable(resources) {
                 <td>${Math.round(r.utilization)}%</td>
                 <td><span class="status-badge ${statusClass}">${statusText}</span></td>
             </tr>
+
+            <tr class="resource-details-row d-none" data-parent-id="${r.id}" id="resource-projects-${r.id}">
+                <td colspan="10" class="child-table-td">
+                    ${renderResourceProjects(r.projects)}
+                </td>
+            </tr>
         `;
     }).join('');
 
     // Initialize search functionality
     initResourceSearch();
+}
+
+function renderResourceProjects(projects = []) {
+    if (!projects.length) {
+        return `<div class="text-muted text-center">No project allocations.</div>`;
+    }
+
+    return `
+        <table class="table table-sm nested-table">
+            <thead>
+                <tr>
+                    <th>Project</th>
+                    <th>Role</th>
+                    <th>Allocated Hours</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${projects.map(p => `
+                    <tr>
+                        <td>${p.project_name}</td>
+                        <td>${p.role}</td>
+                        <td>${p.hours}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function toggleResourceProjects(resourceId, iconEl) {
+    const row = document.getElementById(`resource-projects-${resourceId}`);
+    if (!row) return;
+
+    const isOpen = !row.classList.contains('d-none');
+
+    // Close all
+    document.querySelectorAll('.resource-details-row').forEach(r => r.classList.add('d-none'));
+    document.querySelectorAll('.toggle-icon').forEach(i => i.textContent = '+');
+
+    if (!isOpen) {
+        row.classList.remove('d-none');
+        iconEl.textContent = '−';
+    }
 }
 
 let resourceSearchInitialized = false;
@@ -721,20 +838,52 @@ function initResourceSearch() {
     let tableBody = document.getElementById('resourceTableBody');
     if (!searchInput || !tableBody) return;
 
-    // Remove old listener if exists to prevent duplicate triggers
-    searchInput.onkeyup = function() {
-        let searchValue = this.value.toLowerCase();
-        let rows = tableBody.querySelectorAll('tr:not(.no-results)');
+    // // Remove old listener if exists to prevent duplicate triggers
+    // searchInput.onkeyup = function() {
+    //     let searchValue = this.value.toLowerCase();
+    //     let rows = tableBody.querySelectorAll('tr:not(.no-results)');
         
-        rows.forEach(row => {
-            let rowText = Array.from(row.cells)
-                .map(cell => cell.textContent.toLowerCase())
-                .join(' ');
+    //     rows.forEach(row => {
+    //         let rowText = Array.from(row.cells)
+    //             .map(cell => cell.textContent.toLowerCase())
+    //             .join(' ');
 
-            row.style.display = rowText.includes(searchValue) ? '' : 'none';
+    //         row.style.display = rowText.includes(searchValue) ? '' : 'none';
+    //     });
+
+    //     showNoResults(tableBody);
+    // };
+    searchInput.onkeyup = function () {
+        let searchValue = this.value.toLowerCase();
+
+        const parentRows = tableBody.querySelectorAll('.resource-row');
+
+        parentRows.forEach(parent => {
+            const resourceId = parent.dataset.resourceId;
+            const child = tableBody.querySelector(
+                `.resource-details-row[data-parent-id="${resourceId}"]`
+            );
+
+            const parentText = parent.textContent.toLowerCase();
+            const childText = child ? child.textContent.toLowerCase() : '';
+
+            const match =
+                parentText.includes(searchValue) ||
+                childText.includes(searchValue);
+
+            parent.style.display = match ? '' : 'none';
+
+            if (child) {
+                child.style.display = match ? '' : 'none';
+
+                // Collapse child by default on search
+                if (!searchValue) {
+                    child.classList.add('d-none');
+                }
+            }
         });
 
-        showNoResults(tableBody);
+        showNoResultsGrouped(tableBody, '.resource-row', 10);
     };
 }
 
@@ -782,8 +931,8 @@ function renderProjectWiseTable(projectWiseData) {
         </tr>
 
         <!-- Child Row -->
-        <tr class="resource-details-row d-none" id="resources-${p.project_id}">
-            <td colspan="5">
+        <tr class="resource-details-row d-none" id="resources-${p.project_id}" data-parent-id="${p.project_id}">
+            <td colspan="5" class="child-table-td">
                 ${renderProjectResources(p.resources)}
             </td>
         </tr>
@@ -805,6 +954,7 @@ function renderProjectResources(resources = []) {
                     <th>Resource Name</th>
                     <th>Role</th>
                     <th>Allocated Hours</th>
+                    <th>Allocation Duration</th>
                 </tr>
             </thead>
             <tbody>
@@ -813,6 +963,20 @@ function renderProjectResources(resources = []) {
                         <td>${r.name}</td>
                         <td>${r.role}</td>
                         <td>${r.hours}</td>
+                        <td>
+                            <span class="duration-wrapper">
+                                <span class="duration-text">${r.duration}</span>
+
+                                ${r.weekly_tooltip ? `
+                                    <span class="info-icon-wrapper duration-tooltip"
+                                        tabindex="0"
+                                        aria-label="Weekly allocation details"
+                                        data-tooltip="${r.weekly_tooltip}">
+                                        <i class="fas fa-info-circle"></i>
+                                    </span>
+                                ` : ''}
+                            </span>
+                        </td>
                     </tr>
                 `).join('')}
             </tbody>
@@ -844,20 +1008,73 @@ function initProjectWiseSearch() {
     if (!searchInput || !tableBody) return;
 
     // Remove old listener if exists
-    searchInput.onkeyup = function() {
+    // searchInput.onkeyup = function() {
+    //     let searchValue = this.value.toLowerCase();
+    //     let rows = tableBody.querySelectorAll('tr:not(.no-results)');
+
+    //     rows.forEach(row => {
+    //         let rowText = Array.from(row.cells)
+    //             .map(cell => cell.textContent.toLowerCase())
+    //             .join(' ');
+
+    //         row.style.display = rowText.includes(searchValue) ? '' : 'none';
+    //     });
+
+    //     showNoResultsProjectWise(tableBody);
+    // };
+    searchInput.onkeyup = function () {
         let searchValue = this.value.toLowerCase();
-        let rows = tableBody.querySelectorAll('tr:not(.no-results)');
 
-        rows.forEach(row => {
-            let rowText = Array.from(row.cells)
-                .map(cell => cell.textContent.toLowerCase())
-                .join(' ');
+        const parentRows = tableBody.querySelectorAll('.project-row');
 
-            row.style.display = rowText.includes(searchValue) ? '' : 'none';
+        parentRows.forEach(parent => {
+            const projectId = parent.dataset.projectId;
+            const child = tableBody.querySelector(
+                `.resource-details-row[data-parent-id="${projectId}"]`
+            );
+
+            const parentText = parent.textContent.toLowerCase();
+            const childText = child ? child.textContent.toLowerCase() : '';
+
+            const match =
+                parentText.includes(searchValue) ||
+                childText.includes(searchValue);
+
+            parent.style.display = match ? '' : 'none';
+
+            if (child) {
+                child.style.display = match ? '' : 'none';
+
+                if (!searchValue) {
+                    child.classList.add('d-none');
+                }
+            }
         });
 
-        showNoResultsProjectWise(tableBody);
+        showNoResultsGrouped(tableBody, '.project-row', 5);
     };
+}
+
+// Show "No matching records" for both Resource and Project-wise tables
+function showNoResultsGrouped(tableBody, parentSelector, colspan) {
+    const parents = [...tableBody.querySelectorAll(parentSelector)];
+    const allHidden = parents.every(p => p.style.display === 'none');
+
+    let existing = tableBody.querySelector('.no-results');
+
+    if (allHidden) {
+        if (!existing) {
+            let tr = document.createElement('tr');
+            tr.className = 'no-results';
+            tr.innerHTML = `
+                <td colspan="${colspan}" class="text-center text-muted">
+                    No matching records found.
+                </td>`;
+            tableBody.appendChild(tr);
+        }
+    } else if (existing) {
+        existing.remove();
+    }
 }
 
 // Show "No matching records" for Project-wise table

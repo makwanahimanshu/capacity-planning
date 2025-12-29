@@ -153,28 +153,40 @@ class CapacityDashboardController extends Controller
             $workingDaysDatesTotal = [];
             $totalAvailableHours = 0;
 
-            $period = CarbonPeriod::create($start, $end);
-            foreach ($period as $date) {
+            // $period = CarbonPeriod::create($start, $end);
+            // foreach ($period as $date) {
+
+            //     $dateStr = $date->toDateString();
+
+            //     // Skip weekends
+            //     if ($date->isWeekend()) {
+            //         continue;
+            //     }
+
+            //     $workingDaysDatesTotal[] = $dateStr;
+
+            //     // Skip holidays
+            //     if (in_array($dateStr, $holidays)) {
+            //         continue;
+            //     }
+
+            //     // Reduce only leave hours (not full day)
+            //     $leaveHours = $leaveHoursByDate[$dateStr] ?? 0;
+
+            //     $availableForDay = max(0, $dailyCapacity - $leaveHours);
+            //     $totalAvailableHours += $availableForDay;
+            // }
+            foreach (CarbonPeriod::create($start, $end) as $date) {
+
+                if ($date->isWeekend()) continue;
 
                 $dateStr = $date->toDateString();
-
-                // Skip weekends
-                if ($date->isWeekend()) {
-                    continue;
-                }
-
                 $workingDaysDatesTotal[] = $dateStr;
 
-                // Skip holidays
-                if (in_array($dateStr, $holidays)) {
-                    continue;
-                }
+                if (in_array($dateStr, $holidays)) continue;
 
-                // Reduce only leave hours (not full day)
                 $leaveHours = $leaveHoursByDate[$dateStr] ?? 0;
-
-                $availableForDay = max(0, $dailyCapacity - $leaveHours);
-                $totalAvailableHours += $availableForDay;
+                $totalAvailableHours += max(0, $dailyCapacity - $leaveHours);
             }
 
             // --- Calculate holiday hours ---
@@ -216,6 +228,46 @@ class CapacityDashboardController extends Controller
                 }
             }
 
+            $resourceProjects = [];
+
+            foreach ($allocs as $alloc) {
+
+                $project = DB::table('projects')
+                    ->where('id', $alloc->project_id)
+                    ->where('status', 'active')
+                    ->first();
+
+                if (!$project) continue;
+
+                $projectAllocatedHours = 0;
+
+                if ($month) {
+                    $monthsData = json_decode($alloc->months_and_hours, true) ?? [];
+                    $monthSummary = collect($monthsData)->firstWhere('month', $month);
+                    $projectAllocatedHours = $monthSummary['allocated_hours'] ?? 0;
+                } else {
+                    $dailyData = json_decode($alloc->daily_hours, true) ?? [];
+                    foreach ($dailyData as $day) {
+                        $dayDate = Carbon::parse($day['date']);
+                        if (
+                            $dayDate->between($start, $end) &&
+                            !$dayDate->isWeekend() &&
+                            !in_array($dayDate->toDateString(), $holidays)
+                        ) {
+                            $projectAllocatedHours += $day['hours'] ?? 0;
+                        }
+                    }
+                }
+
+                if ($projectAllocatedHours > 0) {
+                    $resourceProjects[] = [
+                        'project_name' => $project->name,
+                        'role'         => $res->role ?? 'N/A',
+                        'hours'        => round($projectAllocatedHours, 1),
+                    ];
+                }
+            }
+
             $availableHours = max(0, $totalAvailableHours - $allocatedHours);
 
             $utilizationPercent = $totalAvailableHours > 0
@@ -238,11 +290,12 @@ class CapacityDashboardController extends Controller
                 'leave_hours'     => array_sum(array_column($leaves->toArray(), 'hours_impacted')),
                 'utilization'     => $utilizationPercent,
                 'working_days'    => count($workingDaysDatesTotal),
+                'projects'        => $resourceProjects, 
             ];
 
             $totalNetAvailable += $availableHours;
             $totalAllocated += $allocatedHours;
-            $totalHoursSum += $totalHours;
+            // $totalHoursSum += $totalHours;
         }
 
         // --- Department-wise aggregation ---
@@ -307,36 +360,127 @@ class CapacityDashboardController extends Controller
             $projectTotalAllocated = 0;
 
 
-            foreach ($projectAllocations as $alloc) {
-                $allocatedHours = 0;
+            // foreach ($projectAllocations as $alloc) {
+            //     $allocatedHours = 0;
 
-                // ---- MONTH MODE ----
-                if ($month) {
-                    $monthsData = json_decode($alloc->months_and_hours, true) ?? [];
-                    $monthSummary = collect($monthsData)->firstWhere('month', $month);
-                    $allocatedHours = $monthSummary['allocated_hours'] ?? 0;
-                }
-                // ---- DATE RANGE MODE ----
-                else {
-                    $dailyData = json_decode($alloc->daily_hours, true) ?? [];
-                    foreach ($dailyData as $day) {
-                        $dayDate = Carbon::parse($day['date']);
-                        if (
-                            $dayDate->between($start, $end) &&
-                            !$dayDate->isWeekend() &&
-                            !in_array($dayDate->toDateString(), $holidays)
-                        ) {
-                            $allocatedHours += $day['hours'] ?? 0;
+            //     // ---- MONTH MODE ----
+            //     if ($month) {
+            //         $monthsData = json_decode($alloc->months_and_hours, true) ?? [];
+            //         $monthSummary = collect($monthsData)->firstWhere('month', $month);
+            //         $allocatedHours = $monthSummary['allocated_hours'] ?? 0;
+            //     }
+            //     // ---- DATE RANGE MODE ----
+            //     else {
+            //         $dailyData = json_decode($alloc->daily_hours, true) ?? [];
+            //         foreach ($dailyData as $day) {
+            //             $dayDate = Carbon::parse($day['date']);
+            //             if (
+            //                 $dayDate->between($start, $end) &&
+            //                 !$dayDate->isWeekend() &&
+            //                 !in_array($dayDate->toDateString(), $holidays)
+            //             ) {
+            //                 $allocatedHours += $day['hours'] ?? 0;
+            //             }
+            //         }
+            //     }
+
+            //     if ($allocatedHours > 0) {
+            //         $resourcesData[] = [
+            //             'id'    => $alloc->resource_id,
+            //             'name'  => $alloc->name,
+            //             'role'  => $alloc->role ?? 'N/A',
+            //             'hours' => $allocatedHours
+            //         ];
+
+            //         $projectTotalAllocated += $allocatedHours;
+            //     }
+            // }
+
+            foreach ($projectAllocations as $alloc) {
+
+                $allocatedHours = 0;
+                $duration = '-';
+                $weeklyHours = [];
+
+                $dailyData = json_decode($alloc->daily_hours, true) ?? [];
+
+                /*
+                |--------------------------------------------------------------------------
+                | Calculate allocated hours + weekly hours
+                |--------------------------------------------------------------------------
+                */
+                foreach ($dailyData as $day) {
+
+                    $dayDate = Carbon::parse($day['date']);
+
+                    if (
+                        $dayDate->between($start, $end) &&
+                        !$dayDate->isWeekend() &&
+                        !in_array($dayDate->toDateString(), $holidays)
+                    ) {
+                        $hours = $day['hours'] ?? 0;
+                        $allocatedHours += $hours;
+
+                        if ($hours > 0) {
+                            $weekKey = 'Week ' . $dayDate->weekOfMonth;
+                            $weeklyHours[$weekKey] = ($weeklyHours[$weekKey] ?? 0) + $hours;
                         }
                     }
                 }
 
+                /*
+                |--------------------------------------------------------------------------
+                | Duration calculation (day + week based)
+                |--------------------------------------------------------------------------
+                */
+                $workedDates = collect($dailyData)
+                    ->filter(fn ($d) => ($d['hours'] ?? 0) > 0)
+                    ->map(fn ($d) => Carbon::parse($d['date']))
+                    ->filter(fn ($d) => $d->between($start, $end));
+
+                $workedDaysCount  = $workedDates->count();
+                $workedWeeksCount = $workedDates
+                    ->groupBy(fn ($d) => $d->weekOfMonth)
+                    ->count();
+
+                if ($workedDaysCount === 0) {
+                    $duration = '-';
+                } elseif ($workedDaysCount === 1) {
+                    $duration = '1 Day';
+                } elseif ($workedWeeksCount === 1) {
+                    $duration = '1 Week';
+                } elseif ($workedWeeksCount === 2) {
+                    $duration = '2 Weeks';
+                } elseif ($workedWeeksCount === 3) {
+                    $duration = '3 Weeks';
+                } elseif ($workedWeeksCount === 4) {
+                    $duration = '4 Weeks';
+                } else {
+                    $duration = 'Full Month';
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Tooltip text
+                |--------------------------------------------------------------------------
+                */
+                $weeklyTooltip = collect($weeklyHours)
+                    ->map(fn ($hrs, $week) => $week . ' : ' . round($hrs, 1) . ' hrs')
+                    ->implode("\n");
+
+                /*
+                |--------------------------------------------------------------------------
+                | Push resource data
+                |--------------------------------------------------------------------------
+                */
                 if ($allocatedHours > 0) {
                     $resourcesData[] = [
-                        'id'    => $alloc->resource_id,
-                        'name'  => $alloc->name,
-                        'role'  => $alloc->role ?? 'N/A',
-                        'hours' => $allocatedHours
+                        'id'             => $alloc->resource_id,
+                        'name'           => $alloc->name,
+                        'role'           => $alloc->role ?? 'N/A',
+                        'hours'          => round($allocatedHours, 1),
+                        'duration'       => $duration,
+                        'weekly_tooltip' => $weeklyTooltip,
                     ];
 
                     $projectTotalAllocated += $allocatedHours;
@@ -384,7 +528,7 @@ class CapacityDashboardController extends Controller
         return response()->json([
             'total_hours'          => $totalHours,
             'total_hours_sum'      => $totalHoursSum,
-            'available'            => $totalNetAvailable,
+            'available'            => round($totalHoursSum - $totalAllocated, 1),
             'allocated'            => $totalAllocated,
             'utilization_percent'  => $globalUtilizationPercent . '%',
             'availability_percent' => $globalAvailabilityPercent,

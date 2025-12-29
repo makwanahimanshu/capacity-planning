@@ -1,7 +1,7 @@
 <?php
 
 return [
-	'cache_ver' => env('SCRIPT_VERSION', '1.0.7'),
+	'cache_ver' => env('SCRIPT_VERSION', '1.0.10'),
 
     'daily_working_hours' => 8, // Default set per day working hours
 
