@@ -24,14 +24,10 @@ class HolidayController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'date_range'   => 'required|string',
+        $request->validate([
+            'date_range'   => ['required', 'string', 'regex:/^\d{4}-\d{2}-\d{2}( to \d{4}-\d{2}-\d{2})?$/'],
             'description'  => 'required|string|min:2|max:500',
         ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
 
         $dateRange = explode(' to ', $request->date_range);
         $startDate = Carbon::parse($dateRange[0]);

@@ -52,6 +52,10 @@ class ResourceController extends Controller
         ]);
 
         $validated['is_project_manager'] = $request->has('is_project_manager') ? 1 : 0;
+        $validated['total_hours'] = $validated['total_hours'] ? $validated['total_hours'] : 0;
+        $validated['leave_hours'] = $validated['leave_hours'] ? $validated['leave_hours'] : 0;
+        $validated['status'] = $validated['status'] ? $validated['status'] : 1;
+        $validated['role'] = $validated['role'] ? $validated['role'] : null;
 
         $resource = Resource::create($validated);
 
@@ -90,6 +94,10 @@ class ResourceController extends Controller
         ]);
 
         $validated['is_project_manager'] = $request->has('is_project_manager') ? 1 : 0;
+        $validated['total_hours'] = $validated['total_hours'] ? $validated['total_hours'] : 0;
+        $validated['leave_hours'] = $validated['leave_hours'] ? $validated['leave_hours'] : 0;
+        $validated['status'] = $validated['status'] ? $validated['status'] : 1;
+        $validated['role'] = $validated['role'] ? $validated['role'] : null;
 
         $resource->update($validated);
 

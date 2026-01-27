@@ -81,6 +81,7 @@ class CapacityDashboardController extends Controller
 
         $resourcesList = DB::table('resources')
             ->whereNotIn('dept_id', [7, 8]) // <-- exclude depts 7 & 8
+            ->orderBy('name', 'asc')
             ->get();
 
         // Fetch allocations
@@ -330,6 +331,7 @@ class CapacityDashboardController extends Controller
                         ->where('end_date', '>=', $end);
                 });
             })
+            ->orderBy('name', 'asc')
             ->get();
 
         $projectWiseData = [];
@@ -510,12 +512,13 @@ class CapacityDashboardController extends Controller
                 'leaves.hours_impacted',
                 'leaves.remark'
             )
+            ->orderBy('resources.name', 'asc')
             ->whereNotIn('resources.dept_id', [7, 8]) // <-- exclude depts 7 & 8
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('leaves.start_date', [$start, $end])
                 ->orWhereBetween('leaves.end_date', [$start, $end]);
             })
-            ->orderBy('leaves.start_date', 'asc')
+            // ->orderBy('leaves.start_date', 'asc')
             ->get();
 
         // Holidays in period
