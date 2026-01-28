@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -29,9 +30,10 @@
     {{-- Page-specific styles --}}
     @yield('styles')
 </head>
+
 <body>
     {{-- <div class="container my-4"> --}}
-        @yield('content')
+    @yield('content')
     {{-- </div> --}}
 
     {{-- jQuery --}}
@@ -50,7 +52,9 @@
     <script src="{{ asset('js/select2.min.js') }}?v={{ config('constants.cache_ver') }}"></script>
 
     <script src="{{ asset('js/flatpickr.js') }}?v={{ config('constants.cache_ver') }}"></script>
-    {{-- <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script> --}}
+
+    {{-- SweetAlert2 CSS --}}
+    <script src="{{ asset('js/sweetalert2.min.js') }}?v={{ config('constants.cache_ver') }}"></script>
 
     <!-- Scripts -->
     {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script> --}}
@@ -61,4 +65,5 @@
     {{-- Page-specific scripts --}}
     @yield('scripts')
 </body>
+
 </html>

@@ -196,8 +196,9 @@ class CapacityPlanningController extends Controller
                 'priority'         => $alloc->project->priority,
                 'allocations'      => $dailyAlloc,
                 'total_hours'      => $monthInfo['total_hours'] ?? 0,
-                'allocated_hours'  => $monthInfo['allocated_hours'] ?? 0,
                 'available_hours'  => $monthInfo['available_hours'] ?? 0,
+                'start_date'       => $alloc->project->start_date,
+                'end_date'         => $alloc->project->end_date,
             ];
         })->filter(); // remove null entries
 
@@ -228,6 +229,27 @@ class CapacityPlanningController extends Controller
                 ->where('project_id', $projectId)
                 ->first();
 
+            // --- Validation: Project Check ---
+            $project = Project::find($projectId);
+            if (!$project) throw new Exception("Project not found");
+
+            // We will filter out-of-range dates AFTER merging with existing data
+            // to allow clearing (setting to 0) any previously saved out-of-range allocations.
+
+            // 2. Max Hours Check (Approximate: Check if this single resource's addition pushes project over limit?)
+            // A strict global check requires summing ALL allocations for this project.
+            // Let's implement a strict check.
+            $currentTotalAllocated = ResourceProjectAllocation::where('project_id', $projectId)
+                ->where('resource_id', '!=', $resourceId) // Exclude current resource to re-add later
+                ->get()
+                ->sum(function($a) {
+                    $months = json_decode($a->months_and_hours ?? '[]', true);
+                    return array_sum(array_column($months, 'allocated_hours'));
+                });
+
+            // Calculate new allocation for THIS resource from the request + existing days merged
+            // (We need the merged result first to know the new total for this resource)
+
             if (!$allocation) {
                 return response()->json([
                     'success' => false,
@@ -244,7 +266,24 @@ class CapacityPlanningController extends Controller
             $updatedDaily = [];
             $dates = array_keys($dailyMap);
             sort($dates);
-            foreach($dates as $dt) $updatedDaily[] = ['date'=>$dt,'hours'=>$dailyMap[$dt]];
+            foreach ($dates as $dt) {
+                $hours = (float)$dailyMap[$dt];
+                // Keep all entries (including 0 hrs) as long as they are within project date range
+                if ($dt >= $project->start_date && $dt <= $project->end_date) {
+                    $updatedDaily[] = ['date' => $dt, 'hours' => $hours];
+                }
+            }
+
+            // --- STRICT MAX HOURS CHECK ---
+            // Sum hours for this resource
+            $thisResourceTotal = array_sum(array_column($updatedDaily, 'hours'));
+            
+            if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
+                 return response()->json([
+                    'success' => false,
+                    'message' => "Allocation exceeds project total hours limit ({$project->total_hours} hrs)."
+                ], 422);
+            }
 
             // --- Recalculate months_and_hours based on daily_hours ---
             $monthsGrouped = [];
@@ -324,6 +363,13 @@ class CapacityPlanningController extends Controller
 
                 if (!$projectId || !is_array($newDailyHours)) continue;
 
+                // --- Validation: Project Check ---
+                $project = Project::find($projectId);
+                if (!$project) continue;
+
+                // We will filter out-of-range dates AFTER merging with existing data
+                // to allow clearing (setting to 0) any previously saved out-of-range allocations.
+
                 // Fetch or create allocation record
                 $allocation = ResourceProjectAllocation::firstOrCreate([
                     'resource_id' => $resourceId,
@@ -352,7 +398,32 @@ class CapacityPlanningController extends Controller
                 $dates = array_keys($dailyMap);
                 sort($dates);
                 foreach ($dates as $dt) {
-                    $updatedDaily[] = ['date' => $dt, 'hours' => $dailyMap[$dt]];
+                    $hours = (float)$dailyMap[$dt];
+                    // Keep all entries (including 0 hrs) as long as they are within project date range
+                    if ($dt >= $project->start_date && $dt <= $project->end_date) {
+                        $updatedDaily[] = ['date' => $dt, 'hours' => $hours];
+                    }
+                }
+
+                // --- STRICT MAX HOURS CHECK ---
+                $thisResourceTotal = array_sum(array_column($updatedDaily, 'hours'));
+
+                 // Sum OTHER resources' allocations for this project
+                $currentTotalAllocated = ResourceProjectAllocation::where('project_id', $projectId)
+                    ->where('resource_id', '!=', $resourceId)
+                    ->get()
+                    ->sum(function($a) {
+                         $months = json_decode($a->months_and_hours ?? '[]', true);
+                         return array_sum(array_column($months, 'allocated_hours'));
+                    });
+
+                if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
+                     // Rollback and return error
+                     DB::rollBack();
+                     return response()->json([
+                        'success' => false,
+                        'message' => "Allocation exceeds project limit ({$project->total_hours} hrs) for project: {$project->name}."
+                    ], 422);
                 }
 
                 $allocation->daily_hours = json_encode($updatedDaily);
@@ -434,6 +505,13 @@ class CapacityPlanningController extends Controller
                     $newDailyHours = $proj['daily_hours'] ?? [];
                     if(!$projectId || !is_array($newDailyHours)) continue;
 
+                    // --- Validation: Project Check ---
+                    $project = Project::find($projectId);
+                    if (!$project) continue;
+
+                    // We will filter out-of-range dates AFTER merging with existing data
+                    // to allow clearing (setting to 0) any previously saved out-of-range allocations.
+
                     $allocation = ResourceProjectAllocation::where('resource_id',$resourceId)
                         ->where('project_id',$projectId)->first();
                     if(!$allocation) continue;
@@ -447,10 +525,31 @@ class CapacityPlanningController extends Controller
                     $updatedDaily = [];
                     $dates = array_keys($dailyMap);
                     sort($dates);
-                    foreach($dates as $dt){
-                        $date = Carbon::parse($dt);
-                        if($date->isWeekend()) continue; // optional: skip weekends
-                        $updatedDaily[] = ['date'=>$dt,'hours'=>$dailyMap[$dt]];
+                    foreach ($dates as $dt) {
+                        $hours = (float)$dailyMap[$dt];
+                        // Keep all entries (including 0 hrs) as long as they are within project date range
+                        if ($dt >= $project->start_date && $dt <= $project->end_date) {
+                             $updatedDaily[] = ['date' => $dt, 'hours' => $hours];
+                        }
+                    }
+
+                    // --- STRICT MAX HOURS CHECK ---
+                    $thisResourceTotal = array_sum(array_column($updatedDaily, 'hours'));
+                    
+                    $currentTotalAllocated = ResourceProjectAllocation::where('project_id', $projectId)
+                        ->where('resource_id', '!=', $resourceId)
+                        ->get()
+                        ->sum(function($a) {
+                             $months = json_decode($a->months_and_hours ?? '[]', true);
+                             return array_sum(array_column($months, 'allocated_hours'));
+                        });
+
+                    if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
+                         DB::rollBack();
+                         return response()->json([
+                            'success' => false,
+                            'message' => "Allocation exceeds project limit ({$project->total_hours} hrs) for project: {$project->name}."
+                        ], 422);
                     }
 
                     // --- Recalculate months_and_hours ---
@@ -786,17 +885,22 @@ class CapacityPlanningController extends Controller
                     'project_id'  => $project->id,
                 ]);
 
+                $isRestored = false;
+                if ($allocation->trashed()) {
+                    $allocation->restore();
+                    $isRestored = true;
+                }
+
                 $isNewAllocation = !$allocation->exists;
 
                 // Initialize only for NEW resource
                 if ($isNewAllocation) {
                     $allocation->daily_hours = json_encode([]);
                     $allocation->months_and_hours = json_encode([]);
-                    $allocation->deleted_at = null;
                 }
 
-                // If existing resource AND dates didn't change → preserve as is
-                if (!$isNewAllocation && !$dateChanged) {
+                // If existing resource AND dates didn't change AND not just restored → preserve as is
+                if (!$isNewAllocation && !$dateChanged && !$isRestored) {
                     continue;
                 }
 
