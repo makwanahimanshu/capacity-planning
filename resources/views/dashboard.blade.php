@@ -18,7 +18,7 @@
 
  --}}
 
- <x-app-layout>
+<x-app-layout>
     {{-- <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Dashboard') }}
@@ -30,7 +30,7 @@
             <!-- Welcome Card -->
             <div class="main-dashboard-welcome-card bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
                 <div class="p-6 text-gray-900">
-                    {{ __("Welcome back! Select an option below to continue.") }}
+                    {{ __('Welcome back! Select an option below to continue.') }}
                 </div>
             </div>
 
@@ -41,7 +41,8 @@
                     <div class="main-dashboard-card-icon">
                         <svg class="main-dashboard-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                            </path>
                         </svg>
                     </div>
                     <div class="main-dashboard-card-content">
@@ -50,8 +51,8 @@
                     </div>
                     <div class="main-dashboard-card-arrow">
                         <svg class="main-dashboard-arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M9 5l7 7-7 7"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
                         </svg>
                     </div>
                 </a>
@@ -61,7 +62,8 @@
                     <div class="main-dashboard-card-icon">
                         <svg class="main-dashboard-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
+                            </path>
                         </svg>
                     </div>
                     <div class="main-dashboard-card-content">
@@ -70,8 +72,8 @@
                     </div>
                     <div class="main-dashboard-card-arrow">
                         <svg class="main-dashboard-arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M9 5l7 7-7 7"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
                         </svg>
                     </div>
                 </a>
@@ -94,7 +96,8 @@
         }
 
         .main-dashboard-card {
-            flex: 1; /* Each card takes 50% */
+            flex: 1;
+            /* Each card takes 50% */
             display: flex;
             flex-direction: column;
             align-items: flex-start;
@@ -221,13 +224,25 @@
         }
 
         @keyframes main-dashboard-fade-in {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         @keyframes main-dashboard-slide-up {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @media (max-width: 640px) {

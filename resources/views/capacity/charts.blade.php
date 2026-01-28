@@ -177,10 +177,11 @@
                     <input type="text" id="resourceSearchInput" placeholder="Search resources..." class="form-control">
                 </div>
 
-                <div class="table-responsive scrollable-table" style="max-height: 400px; overflow-y: auto;">
+                <div class="table-responsive scrollable-table" style="max-height: 410px; overflow-y: auto;">
                     <table class="resource-table">
                         <thead>
                             <tr>
+                                <th>S.No</th>
                                 <th></th>
                                 <th>Employee</th>
                                 <th>Department</th>
@@ -213,6 +214,7 @@
                     <table class="resource-table">
                         <thead>
                             <tr>
+                                <th>S.No</th>
                                 <th></th>
                                 <th>Project</th>
                                 <th>Project Manager</th>
@@ -238,6 +240,7 @@
                     <table class="resource-table">
                         <thead>
                             <tr>
+                                <th>S.No</th>
                                 <th>Project</th>
                                 <th>Resource Count</th>
                                 <th>Total Allocated Hours/Month</th>
@@ -261,6 +264,7 @@
                     <table class="resource-table">
                         <thead>
                             <tr>
+                                <th>S.No</th>
                                 <th>Employee</th>
                                 <th>Type</th>
                                 <th>Start</th>
@@ -287,6 +291,7 @@
                     <table class="resource-table">
                         <thead>
                             <tr>
+                                <th>S.No</th>
                                 <th>Date</th>
                                 <th>Description</th>
                         </thead>
@@ -524,7 +529,10 @@
                 leaves,
                 total_hours,
                 holidays,
-                total_hours_sum
+                total_hours_sum,
+                total_holiday_hours,
+                total_hours_sum_for_table,
+                total_leave_hours
             } = data;
 
             // // Update summary stats
@@ -674,7 +682,13 @@
             });
 
             // Render table
-            renderTable(resources);
+            renderTable(resources, {
+                total_hours_sum_for_table,
+                total_holiday_hours,
+                total_leave_hours,
+                allocated,
+                available
+            });
 
             renderProjectWiseTable(project_wise);
 
@@ -747,7 +761,7 @@
 
 
         // Table 1: Resource List -----------------------------------------------------------------
-        function renderTable(resources) {
+        function renderTable(resources, totals = {}) {
             // let renderTableBody = document.getElementById('resourceTableBody');
             // if (!renderTableBody) return;
 
@@ -791,11 +805,15 @@
 
             if (!resources.length) {
                 renderTableBody.innerHTML =
-                    `<tr><td colspan="8" class="text-center text-muted">No resource found for the selected month.</td></tr>`;
+                    `<tr><td colspan="10" class="text-center text-muted">No resource found for the selected month.</td></tr>`;
+                // Clear footer if no data
+                let table = renderTableBody.closest('table');
+                let tfoot = table.querySelector('tfoot');
+                if (tfoot) tfoot.remove();
                 return;
             }
 
-            renderTableBody.innerHTML = resources.map(r => {
+            renderTableBody.innerHTML = resources.map((r, index) => {
                 let statusClass = 'status-ok',
                     statusText = 'OK';
                 if (r.utilization > 100) {
@@ -808,11 +826,12 @@
 
                 return `
             <tr class="resource-row" data-resource-id="${r.id}">
+                <td class="text-center">${index + 1}</td>
                 <td class="text-center">
                     ${r.projects?.length ? `
-                            <span class="toggle-icon"
-                                onclick="toggleResourceProjects(${r.id}, this)">+</span>
-                        ` : ''}
+                                                                                                                    <span class="toggle-icon"
+                                                                                                                        onclick="toggleResourceProjects(${r.id}, this)">+</span>
+                                                                                                                ` : ''}
                 </td>
                 <td>${r.name}</td>
                 <td>${r.department}</td>
@@ -826,12 +845,37 @@
             </tr>
 
             <tr class="resource-details-row d-none" data-parent-id="${r.id}" id="resource-projects-${r.id}">
-                <td colspan="10" class="child-table-td">
+                <td colspan="11" class="child-table-td">
                     ${renderResourceProjects(r.projects)}
                 </td>
             </tr>
         `;
             }).join('');
+
+            // --- Render Footer Logic ---
+            let table = renderTableBody.closest('table');
+            let tfoot = table.querySelector('tfoot');
+            if (tfoot) tfoot.remove(); // specific to this table
+
+            if (totals && Object.keys(totals).length > 0) {
+                tfoot = document.createElement('tfoot');
+
+                tfoot.innerHTML = `
+                    <tr class="total-row">
+                        <td></td>
+                        <td></td>
+                        <td colspan="2" class="text-center">Total</td>
+                        <td>${totals.total_hours_sum_for_table}</td>
+                        <td>${totals.total_holiday_hours}</td>
+                        <td>${totals.total_leave_hours}</td>
+                        <td>${totals.allocated}</td>
+                        <td>${totals.available}</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                `;
+                table.appendChild(tfoot);
+            }
 
             // Initialize search functionality
             initResourceSearch();
@@ -853,12 +897,12 @@
             </thead>
             <tbody>
                 ${projects.map(p => `
-                        <tr>
-                            <td>${p.project_name}</td>
-                            <td>${p.role}</td>
-                            <td>${p.hours}</td>
-                        </tr>
-                    `).join('')}
+                                                                                                                                                                                                                <tr>
+                                                                                                                                                                                                                    <td>${p.project_name}</td>
+                                                                                                                                                                                                                    <td>${p.role}</td>
+                                                                                                                                                                                                                    <td>${p.hours}</td>
+                                                                                                                                                                                                                </tr>
+                                                                                                                                                                                                            `).join('')}
             </tbody>
         </table>
     `;
@@ -936,7 +980,7 @@
                     }
                 });
 
-                showNoResultsGrouped(tableBody, '.resource-row', 10);
+                showNoResultsGrouped(tableBody, '.resource-row', 11);
             };
         }
 
@@ -965,18 +1009,19 @@
 
             if (!projectWiseData.length) {
                 renderProjectWiseTableBody.innerHTML =
-                    `<tr><td colspan="5" class="text-center text-muted">No active projects found for the selected month.</td></tr>`;
+                    `<tr><td colspan="6" class="text-center text-muted">No active projects found for the selected month.</td></tr>`;
                 return;
             }
 
-            renderProjectWiseTableBody.innerHTML = projectWiseData.map(p => `
+            renderProjectWiseTableBody.innerHTML = projectWiseData.map((p, index) => `
         <tr class="project-row" data-project-id="${p.project_id}">
+            <td>${index + 1}</td>
             <td class="text-center">
                 ${p.resources?.length ? `
-                        <span class="toggle-icon"
-                              onclick="toggleProjectResources(${p.project_id}, this)">
-                            +
-                        </span>` : ''}
+                                                                                                                                                                                                                <span class="toggle-icon"
+                                                                                                                                                                                                                      onclick="toggleProjectResources(${p.project_id}, this)">
+                                                                                                                                                                                                                    +
+                                                                                                                                                                                                                </span>` : ''}
             </td>
             <td>${p.project_name}</td>
             <td>${p.project_manager}</td>
@@ -986,7 +1031,7 @@
 
         <!-- Child Row -->
         <tr class="resource-details-row d-none" id="resources-${p.project_id}" data-parent-id="${p.project_id}">
-            <td colspan="5" class="child-table-td">
+            <td colspan="6" class="child-table-td">
                 ${renderProjectResources(p.resources)}
             </td>
         </tr>
@@ -1013,15 +1058,15 @@
             </thead>
             <tbody>
                 ${resources.map(r => `
-                        <tr>
-                            <td>${r.name}</td>
-                            <td>${r.role}</td>
-                            <td>${r.hours}</td>
-                            <td>
-                                <span class="duration-wrapper">
-                                    <span class="duration-text">${r.duration}</span>
+                                                                                                                                                                                                                <tr>
+                                                                                                                                                                                                                    <td>${r.name}</td>
+                                                                                                                                                                                                                    <td>${r.role}</td>
+                                                                                                                                                                                                                    <td>${r.hours}</td>
+                                                                                                                                                                                                                    <td>
+                                                                                                                                                                                                                        <span class="duration-wrapper">
+                                                                                                                                                                                                                            <span class="duration-text">${r.duration}</span>
 
-                                    ${r.weekly_tooltip ? `
+                                                                                                                                                                                                                            ${r.weekly_tooltip ? `
                                     <span class="info-icon-wrapper duration-tooltip"
                                         tabindex="0"
                                         aria-label="Weekly allocation details"
@@ -1029,10 +1074,10 @@
                                         <i class="fas fa-info-circle"></i>
                                     </span>
                                 ` : ''}
-                                </span>
-                            </td>
-                        </tr>
-                    `).join('')}
+                                                                                                                                                                                                                        </span>
+                                                                                                                                                                                                                    </td>
+                                                                                                                                                                                                                </tr>
+                                                                                                                                                                                                            `).join('')}
             </tbody>
         </table>
     `;
@@ -1105,7 +1150,7 @@
                     }
                 });
 
-                showNoResultsGrouped(tableBody, '.project-row', 5);
+                showNoResultsGrouped(tableBody, '.project-row', 6);
             };
         }
 
@@ -1156,12 +1201,13 @@
 
             if (!projectWiseData.length) {
                 projectSummaryTableBody.innerHTML =
-                    `<tr><td colspan="3" class="text-center text-muted">No active projects found for the selected month.</td></tr>`;
+                    `<tr><td colspan="4" class="text-center text-muted">No active projects found for the selected month.</td></tr>`;
                 return;
             }
 
-            projectSummaryTableBody.innerHTML = projectWiseData.map(p => `
+            projectSummaryTableBody.innerHTML = projectWiseData.map((p, index) => `
         <tr>
+            <td>${index + 1}</td>
             <td>${p.project_name}</td>
             <td>${p.resource_count}</td>
             <td>${p.allocated_hours}</td>
@@ -1187,7 +1233,7 @@
                     row.style.display = rowText.includes(searchValue) ? '' : 'none';
                 });
 
-                showNoResultsBoth(tableBody, 3); // 3 columns in Project Summary
+                showNoResultsBoth(tableBody, 4); // 4 columns in Project Summary
             };
         }
 
@@ -1198,12 +1244,13 @@
 
             if (!leaves.length) {
                 leaveReportTableBody.innerHTML =
-                    `<tr><td colspan="8" class="text-center text-muted">No leave records found for this month.</td></tr>`;
+                    `<tr><td colspan="7" class="text-center text-muted">No leave records found for this month.</td></tr>`; // Updated colspan from 8 to 7
                 return;
             }
 
-            leaveReportTableBody.innerHTML = leaves.map(p => `
+            leaveReportTableBody.innerHTML = leaves.map((p, index) => `
         <tr>
+            <td>${index + 1}</td>
             <td>${p.employee_name}</td>
             <td>${p.type}</td>
             <td>${formatDate(p.start_date)}</td>
@@ -1232,7 +1279,8 @@
                     row.style.display = rowText.includes(searchValue) ? '' : 'none';
                 });
 
-                showNoResultsBoth(tableBody, 6); // 6 columns in Leave Report
+                showNoResultsBoth(tableBody,
+                    6); // 6 columns in Leave Report (excluding S.No for colspan calculation in showNoResultsBoth)
             };
         }
 
@@ -1243,12 +1291,13 @@
 
             if (!holidays.length) {
                 holidayReportTableBody.innerHTML =
-                    `<tr><td colspan="8" class="text-center text-muted">No holiday records found for this month.</td></tr>`;
+                    `<tr><td colspan="3" class="text-center text-muted">No holiday records found for this month.</td></tr>`; // Updated colspan from 8 to 3
                 return;
             }
 
-            holidayReportTableBody.innerHTML = holidays.map(p => `
+            holidayReportTableBody.innerHTML = holidays.map((p, index) => `
         <tr>
+            <td>${index + 1}</td>
             <td>${formatDate(p.date)}</td>
             <td>${p.description ?? '-'}</td>
         </tr>
@@ -1288,7 +1337,7 @@
                     let tr = document.createElement('tr');
                     tr.className = 'no-results';
                     tr.innerHTML =
-                    `<td colspan="${colspan}" class="text-center text-muted">No matching records found.</td>`;
+                        `<td colspan="${colspan + 1}" class="text-center text-muted">No matching records found.</td>`;
                     tableBody.appendChild(tr);
                 }
             } else if (existingNoResults) {

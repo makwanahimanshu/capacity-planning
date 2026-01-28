@@ -100,7 +100,11 @@ class CapacityDashboardController extends Controller
         $resources = [];
         $totalNetAvailable = 0;
         $totalAllocated = 0;
+        $totalNetAvailable = 0;
+        $totalAllocated = 0;
         $totalHoursSum = 0;
+        $totalHolidayHours = 0;
+        $totalLeaveHours = 0;
 
         foreach ($resourcesList as $res) {
             // $dailyCapacity = $res->daily_capacity ?? $dailyWorkingHoursDefault;
@@ -297,6 +301,8 @@ class CapacityDashboardController extends Controller
             $totalNetAvailable += $availableHours;
             $totalAllocated += $allocatedHours;
             // $totalHoursSum += $totalHours;
+            $totalHolidayHours += $holiday_hours;
+            $totalLeaveHours += array_sum(array_column($leaves->toArray(), 'hours_impacted'));
         }
 
         // --- Department-wise aggregation ---
@@ -530,8 +536,11 @@ class CapacityDashboardController extends Controller
 
         return response()->json([
             'total_hours'          => $totalHours,
-            'total_hours_sum'      => $totalHoursSum,
-            'available'            => round($totalHoursSum - $totalAllocated, 1),
+            'total_hours_sum'      => round($totalHoursSum - ($totalHolidayHours + $totalLeaveHours), 1),
+            'total_hours_sum_for_table'  => $totalHoursSum,
+            'total_holiday_hours'  => $totalHolidayHours,
+            'total_leave_hours'    => $totalLeaveHours,
+            'available'            => $totalNetAvailable,
             'allocated'            => $totalAllocated,
             'utilization_percent'  => $globalUtilizationPercent . '%',
             'availability_percent' => $globalAvailabilityPercent,
