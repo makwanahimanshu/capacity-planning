@@ -170,13 +170,12 @@
 @section('scripts')
     <script>
         /*
-                                                                                                                Client-side script for Capacity Planning view.
-                                                                                                                - Sets up AJAX CSRF header
-                                                                                                                - Initializes UI (select2, date inputs)
-                                                                                                                - Loads resources, holidays, leaves and assignments via AJAX
-                                                                                                                - Builds allocation grids per resource & project
-                                                                                                                - Validates inputs and sends save/delete requests
-                                                                                                            */
+                                                            Client-side script for Capacity Planning view.
+                                                            - Sets up AJAX CSRF header
+                                                            - Initializes UI (select2, date inputs)
+                                                            - Loads resources, holidays, leaves and assignments via AJAX
+                                                            - Builds allocation grids per resource & project
+                                                            - Validates inputs and sends save/delete request                                                                                                                                        */
 
         /* ---------------------------------------------------------------------
            Global AJAX setup for CSRF (Laravel)
@@ -517,9 +516,10 @@
             function debounce(func, wait) {
                 let timeout;
                 return function(...args) {
+                    const ctx = this;
                     let later = () => {
                         clearTimeout(timeout);
-                        func(...args);
+                        func.apply(ctx, args);
                     };
                     clearTimeout(timeout);
                     timeout = setTimeout(later, wait);
@@ -1876,8 +1876,12 @@
                                                 <div class="holidays-item-desc">${h.description}</div>
                                             </div>
                                             <div class="holidays-item-actions">
-                                                <button class="holidays-btn-edit btn btn-sm btn-outline-primary" data-id="${h.id}">Edit</button>
-                                                <button class="holidays-btn-delete btn btn-sm btn-outline-danger" data-id="${h.id}">Delete</button>
+                                                <button class="holidays-btn-edit btn btn-sm btn-dark border-secondary border-opacity-50 px-2" data-id="${h.id}" title="Edit Holiday">
+                                                    <i class="fas fa-pencil-alt text-primary opacity-75"></i>
+                                                </button>
+                                                <button class="holidays-btn-delete btn btn-sm btn-dark border-secondary border-opacity-50 px-2" data-id="${h.id}" title="Delete Holiday">
+                                                    <i class="fas fa-trash-alt text-danger opacity-75"></i>
+                                                </button>
                                             </div>
                                         </div>
                                     `).join(''));
@@ -2021,38 +2025,52 @@
                 $('#holidayModal').modal('show');
             });
 
-            // Delete holiday with smooth fade out UI
+            // Delete holiday with smooth fade out UI and confirmation
             $('#holidaysList').on('click', '.holidays-btn-delete', function() {
                 const id = $(this).data('id');
                 const item = $(this).closest('.holidays-item');
+                const holidayDate = item.find('.holidays-item-date').text();
 
-                $.ajax({
-                    url: `/holidays/${id}`,
-                    type: 'DELETE',
-                    beforeSend: () => {
-                        // Optionally show loader
-                        showLoader();
-                    },
-                    success: (response) => {
-                        // Smooth fade-out removal
-                        item.fadeOut(400, function() {
-                            $(this).remove();
-                            if (!$('#holidaysList').children().length) {
-                                $('#holidaysList').html(
-                                    '<div class="holidays-empty-state">No holidays added yet</div>'
-                                );
+                Swal.fire({
+                    title: 'Delete Holiday?',
+                    text: `Are you sure you want to delete the holiday on ${holidayDate}?`,
+                    icon: 'warning',
+                    background: '#1e293b',
+                    color: '#e5e7eb',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#334155',
+                    confirmButtonText: 'Yes, delete it!',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: `/holidays/${id}`,
+                            type: 'DELETE',
+                            beforeSend: () => {
+                                showLoader();
+                            },
+                            success: (response) => {
+                                item.fadeOut(400, function() {
+                                    $(this).remove();
+                                    if (!$('#holidaysList').children().length) {
+                                        $('#holidaysList').html(
+                                            '<div class="holidays-empty-state">No holidays added yet</div>'
+                                        );
+                                    }
+                                });
+                                showNotification(response.message || "Holiday deleted",
+                                    'success');
+                                loadHolidays();
+                            },
+                            error: (err) => {
+                                showNotification(err.responseJSON?.message ||
+                                    "Failed to delete holiday", 'danger');
+                            },
+                            complete: () => {
+                                hideLoader();
                             }
                         });
-                        showNotification(response.message ||
-                            "Holiday deleted successfully",
-                            'success');
-                    },
-                    error: (err) => {
-                        showNotification(err.responseJSON?.message ||
-                            "Failed to delete holiday", 'danger');
-                    },
-                    complete: () => {
-                        hideLoader();
                     }
                 });
             });
@@ -2067,227 +2085,381 @@
             // Initial load of holidays
             loadHolidays();
 
-
             /* ---------------------------------------------------------------------
             Resource modal: init select2, add/edit logic and validation
             --------------------------------------------------------------------- */
-            $('#manage-resource-editSelect').select2({
+            /* ---------------------------------------------------------------------
+            Resource management: Infinite Scroll, Search, Add, Edit, Delete
+            --------------------------------------------------------------------- */
+            let resourceCurrentPage = 1;
+            let resourceSearchTerm = '';
+            let resourceIsLoading = false;
+            let resourceHasMore = true;
+
+            // Initialize select2 for forms inside modal with search placeholders
+            $('#manage-resource-deptSelect, #manage-resource-editDept').select2({
                 width: '100%',
                 dropdownParent: $('#manageResourceModal'),
-                placeholder: "Select resources",
-                allowClear: true
+                placeholder: "Search and select department",
+                allowClear: true,
+                language: {
+                    noResults: function() {
+                        return "No departments found";
+                    }
+                }
             });
-            $('#manage-resource-deptSelect').select2({
+
+            $('#manage-resource-statusAdd, #manage-resource-editStatus').select2({
                 width: '100%',
                 dropdownParent: $('#manageResourceModal'),
-                placeholder: "Select department",
-                allowClear: true
-            });
-            $('#manage-resource-editDept').select2({
-                width: '100%',
-                dropdownParent: $('#manageResourceModal'),
-                placeholder: "Select department",
-                allowClear: true
-            });
-            $('#manage-resource-statusSelect').select2({
-                width: '100%',
-                dropdownParent: $('#manageResourceModal'),
-                placeholder: "Select status",
-                allowClear: true
-            });
-            $('#manage-resource-editStatus').select2({
-                width: '100%',
-                dropdownParent: $('#manageResourceModal'),
-                placeholder: "Select status",
+                placeholder: "Search and select status",
+                minimumResultsForSearch: 0, // Always show search box
                 allowClear: true
             });
 
-            // Placeholders for select2 on open
-            $(
-                    '#manage-resource-editSelect, #manage-resource-deptSelect, #manage-resource-statusSelect, #manage-resource-editDept, #manage-resource-editStatus'
-                )
-                .on('select2:open', function() {
-                    let searchBox = $('.select2-container--open .select2-search__field');
-                    searchBox.attr('placeholder', $(this).data('placeholder') || 'Search');
+            // Department select2 search placeholder
+            $('#manage-resource-deptSelect, #manage-resource-editDept').on('select2:open', function() {
+                // Find the search input inside the dropdown
+                let searchBox = $('.select2-container--open .select2-search__field');
+                searchBox.attr('placeholder', 'Search for a department');
+            });
+
+            // Status select2 search placeholder
+            $('#manage-resource-statusAdd, #manage-resource-editStatus').on('select2:open', function() {
+                // Find the search input inside the dropdown
+                let searchBox = $('.select2-container--open .select2-search__field');
+                searchBox.attr('placeholder', 'Search for a status');
+            });
+
+            // Handle modal show event
+            $('#manageResourceModal').on('show.bs.modal', function() {
+                resetResourceModalUI();
+                resourceSearchTerm = '';
+                $('#resourceListSearch').val('');
+                fetchResourceList(1, true); // Reset and load first page
+            });
+
+            // Unified Fetch Function (Supports initial load and infinite append)
+            function fetchResourceList(page = 1, reset = false) {
+                if (resourceIsLoading || (!resourceHasMore && !reset)) return;
+
+                resourceIsLoading = true;
+                resourceCurrentPage = page;
+                const body = $('#resourceListBody');
+                const loader = $('#infiniteLoadIndicator');
+
+                if (reset) {
+                    resourceHasMore = true;
+                    body.html(
+                        '<tr><td colspan="4" class="text-center py-5"><div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div><span class="text-white-50 small">Synchronizing resources...</span></td></tr>'
+                    );
+                    $('#resourceTableScroll').scrollTop(0); // Reset scroll to top
+                } else {
+                    loader.removeClass('d-none');
+                }
+
+                $.get("{{ route('resources.index') }}", {
+                    page: page,
+                    search: resourceSearchTerm,
+                    per_page: 10
+                }, function(res) {
+                    if (reset) body.empty();
+
+                    renderResourceRows(res.data);
+
+                    resourceHasMore = res.current_page < res.last_page;
+                    updateResourceUIStats(res);
+                }).fail(function() {
+                    showNotification('Failed to fetch resources', 'danger');
+                    if (reset) body.html(
+                        '<tr><td colspan="4" class="text-center text-danger py-4">Error loading data.</td></tr>'
+                    );
+                }).always(function() {
+                    resourceIsLoading = false;
+                    loader.addClass('d-none');
                 });
+            }
 
-            // Simple input validation triggers for resource forms
-            $(
-                    '#manage-resource-editName, #manage-resource-nameInput, #manage-resource-editEmail, #manage-resource-emailInput, #manage-resource-role, #manage-resource-editRole, #manage-resource-editCapacity, #manage-resource-daily-capacity, #manage-resource-total-hours, #manage-resource-editTotalHours, #manage-resource-leave-hours, #manage-resource-editLeaveHours'
-                )
-                .on('keyup', function() {
-                    $(this).valid();
-                });
+            // Render only rows (append or replace)
+            function renderResourceRows(resources) {
+                const body = $('#resourceListBody');
 
-            /* Show add resource form in modal */
-            $('#manageResourceAddBtn').on('click', function() {
-
-                // Hide Add/Edit buttons
-                $('#manage-resource-chooseAction').addClass('d-none');
-
-                // Hide edit stuff
-                $('#manage-resource-editDropdownContainer').addClass('d-none');
-                $('#manage-resource-editForm').addClass('d-none');
-
-                // Show Add Form
-                $('#manage-resource-addForm').removeClass('d-none');
-
-                // Update modal title
-                $('#manageResourceModalTitle').text('Add Resource');
-
-                // Reset Add Form
-                $('#manage-resource-addForm')[0].reset();
-
-                // Reset Select2 fields
-                $('#manage-resource-addForm .select-search').val(null).trigger('change');
-
-                // Scroll to top
-                $('.manage-resource-scroll').animate({
-                    scrollTop: 0
-                }, 'slow');
-            });
-
-            /* Show edit resource dropdown in modal */
-            $('#manageResourceEditBtn').on('click', function() {
-
-                // Hide choose section
-                $('#manage-resource-chooseAction').addClass('d-none');
-
-                // Show dropdown
-                $('#manage-resource-editDropdownContainer').removeClass('d-none');
-
-                // Hide edit form initially
-                $('#manage-resource-editForm').addClass('d-none');
-
-                // Update title
-                $('#manageResourceModalTitle').text('Edit Resource');
-
-                // Reset dropdown
-                $('#manage-resource-editSelect').val(null).trigger('change');
-            });
-
-            /* On selecting a resource to edit, fetch details and populate edit form */
-            $('#manage-resource-editSelect').on('change', function() {
-
-                let id = $(this).val();
-
-                if (!id) {
-                    $('#manage-resource-editForm').addClass('d-none');
+                if (resources.length === 0 && body.children().length === 0) {
+                    body.html(
+                        '<tr><td colspan="4" class="text-center py-5"><div class="text-white-50"><i class="fas fa-search fs-4 d-block mb-3 opacity-25"></i>No resources found</div></td></tr>'
+                    );
                     return;
                 }
 
-                // Show Edit Form
-                $('#manage-resource-editForm').removeClass('d-none');
+                resources.forEach(r => {
+                    body.append(`
+                        <tr class="resource-row border-bottom border-white border-opacity-5" data-id="${r.id}">
+                            <td class="ps-4 py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-sm rounded-circle me-3 d-flex align-items-center justify-content-center bg-primary bg-opacity-20" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user text-primary small"></i>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-white small">${r.name}</div>
+                                        <div class="text-white-50" style="font-size: 0.75rem;">${r.email}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-3"><span class="badge bg-dark bg-opacity-50 border border-secondary border-opacity-50 text-info fw-normal">${r.department ? r.department.name : 'Unassigned'}</span></td>
+                            <td class="py-3"><span class="text-white-50 small">${r.role || '<span class="opacity-25">—</span>'}</span></td>
+                            <td class="text-center py-3 pe-3">
+                                <div class="btn-group shadow-sm">
+                                    <button class="btn btn-sm btn-dark border-secondary border-opacity-50 edit-resource-btn px-2" data-id="${r.id}" title="Edit">
+                                        <i class="fas fa-pencil-alt text-primary"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-dark border-secondary border-opacity-50 delete-resource-btn px-2" data-id="${r.id}" title="Delete">
+                                        <i class="fas fa-trash-alt text-danger"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `);
+                });
+            }
 
-                // AJAX fetch resource details
-                $.ajax({
-                    url: "/resources/" +
-                        id, // <-- Your GET route must return resource details
-                    method: "GET",
-                    beforeSend: function() {
+            function updateResourceUIStats(data) {
+                const total = data.total || 0;
+                const count = $('#resourceListBody tr.resource-row').length;
+                $('#showingResourceCount').text(count);
+                $('#totalResourceCount').text(total);
+            }
+
+            // Infinite Scroll Listener
+            $('#resourceTableScroll').on('scroll', function() {
+                const scrollHeight = $(this)[0].scrollHeight;
+                const scrollTop = $(this).scrollTop();
+                const clientHeight = $(this).height();
+
+                if (scrollTop + clientHeight >= scrollHeight - 50) { // Slight buffer
+                    if (resourceHasMore && !resourceIsLoading) {
+                        fetchResourceList(resourceCurrentPage + 1);
+                    }
+                }
+            });
+
+            // Search input (Debounced with reliable context)
+            $('#resourceListSearch').on('input', debounce(function() {
+                resourceSearchTerm = $(this).val(); // Safe now with improved debounce
+                fetchResourceList(1, true); // Search triggers a reset
+            }, 400));
+
+            // Add button click
+            $('#resourceListAddBtn').on('click', function() {
+                $('#manage-resource-listView').addClass('d-none');
+                $('#manage-resource-formsArea, #manage-resource-addForm').removeClass('d-none');
+                $('#manageResourceModalTitle').text('Add New Resource');
+                $('#manage-resource-addForm')[0].reset();
+                $('#manage-resource-deptSelect').val(null).trigger('change');
+            });
+
+            // Edit button click (inline)
+            $('#resourceListBody').on('click', '.edit-resource-btn', function() {
+                const id = $(this).data('id');
+                showEditForm(id);
+            });
+
+            function showEditForm(id) {
+                showLoader();
+                $.get(`/resources/${id}`, function(response) {
+                    if (response.success) {
+                        const data = response.data;
+                        $('#editResourceNameHeader').text(data.name);
+
+                        const form = $('#manage-resource-editForm');
+                        form.attr('data-id', id);
+                        form.find('[name="name"]').val(data.name);
+                        form.find('[name="email"]').val(data.email);
+                        form.find('[name="dept_id"]').val(data.dept_id).trigger('change');
+                        form.find('[name="role"]').val(data.role);
+                        form.find('[name="daily_capacity"]').val(data.daily_capacity);
+                        form.find('[name="status"]').val(data.status);
+                        form.find('[name="is_project_manager"]').prop('checked', data.is_project_manager ==
+                            1);
+
+                        $('#manage-resource-listView').addClass('d-none');
+                        $('#manage-resource-formsArea, #manage-resource-editForm').removeClass('d-none');
+                        $('#manageResourceModalTitle').text('Edit Resource');
+                    }
+                }).fail(function() {
+                    showNotification('Error fetching resource details', 'danger');
+                }).always(hideLoader);
+            }
+
+            // Back to list handler with thorough reset
+            $('.back-to-resource-list').on('click', function() {
+                const forms = $('#manage-resource-addForm, #manage-resource-editForm');
+
+                // 1. Hide form area
+                $('#manage-resource-formsArea, #manage-resource-addForm, #manage-resource-editForm')
+                    .addClass('d-none');
+
+                // 2. Reset forms data
+                forms.each(function() {
+                    this.reset();
+                    // 3. Clear Validation states
+                    if ($(this).data('validator')) {
+                        $(this).data('validator').resetForm();
+                    }
+                });
+
+                // 4. Remove manual error styling
+                $('.is-invalid').removeClass('is-invalid');
+                $('.error').remove();
+
+                // 5. Reset Select2 components
+                $('.select-search, #manage-resource-statusAdd, #manage-resource-editStatus').val(null)
+                    .trigger('change');
+
+                // 6. Return to list
+                $('#manage-resource-listView').removeClass('d-none');
+                $('#manageResourceModalTitle').text('Manage Resources');
+                fetchResourceList(resourceCurrentPage);
+            });
+
+            // Delete handler (inline)
+            $('#resourceListBody').on('click', '.delete-resource-btn', function() {
+                const id = $(this).data('id');
+                const row = $(this).closest('tr');
+                const name = row.find('.fw-bold').text();
+
+                Swal.fire({
+                    title: 'Delete Resource?',
+                    text: `Are you sure you want to delete ${name}? This action cannot be undone.`,
+                    icon: 'warning',
+                    background: '#1e293b',
+                    color: '#e5e7eb',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#334155',
+                    confirmButtonText: 'Yes, delete it!',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
                         showLoader();
-                    },
-                    success: function(response) {
-
-                        let data = response.data;
-
-                        // Show dropdown
-                        $('#manage-resource-editDropdownContainer').addClass('d-none');
-
-                        // Fill values
-                        $('#manage-resource-editName').val(data.name);
-                        $('#manage-resource-editEmail').val(data.email);
-                        $('#manage-resource-editDept').val(data.dept_id).trigger(
-                            'change');
-                        $('#manage-resource-editRole').val(data.role);
-                        $('#manage-resource-editCapacity').val(data.daily_capacity);
-                        $('#manage-resource-editTotalHours').val(data.total_hours);
-                        $('#manage-resource-editLeaveHours').val(data.leave_hours);
-                        $('#manage-resource-editStatus').val(data.status).trigger(
-                            'change');
-
-                        $('#manage-resource-isManagerEdit').prop('checked', data
-                            .is_project_manager == 1);
-
-                        // Scroll top
-                        $('#manage-resource-editForm .manage-resource-scroll').animate({
-                            scrollTop: 0
-                        }, 'slow');
-                    },
-                    error: function() {
-                        showNotification("Failed to fetch resource details", "danger");
-                    },
-                    complete: function() {
-                        hideLoader();
+                        $.ajax({
+                            url: `/resources/${id}`,
+                            type: 'DELETE',
+                            success: function(res) {
+                                if (res.success) {
+                                    showNotification(res.message, 'success');
+                                    fetchResourceList(resourceCurrentPage);
+                                    // Also refresh the main resource dropdown
+                                    loadResources();
+                                } else {
+                                    showNotification(res.message || 'Delete failed',
+                                        'danger');
+                                }
+                            },
+                            error: function(xhr) {
+                                showNotification(xhr.responseJSON?.message ||
+                                    'Error deleting resource', 'danger');
+                            },
+                            complete: hideLoader
+                        });
                     }
                 });
             });
 
-            // Reset resource modal on close
-            $('#manageResourceModal').on('hidden.bs.modal', function() {
-                // Reset everything back
-                $('#manage-resource-chooseAction').removeClass('d-none');
+            // Submit Add Form
+            $('#manage-resource-addForm').on('submit', function(e) {
+                e.preventDefault();
+                if (!$(this).valid()) return;
 
-                $('#manage-resource-addForm').addClass('d-none');
-                $('#manage-resource-editForm').addClass('d-none');
-                $('#manage-resource-editDropdownContainer').addClass('d-none');
+                const formData = new FormData(this);
+                showLoader();
+                $.ajax({
+                    url: "/resources",
+                    method: "POST",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        if (response.success) {
+                            showNotification(response.message, 'success');
+                            $('.back-to-resource-list').first().trigger('click');
+                            loadResources();
+                        }
+                    },
+                    error: function(xhr) {
+                        let msg = "Failed to add resource";
+                        if (xhr.responseJSON?.errors) {
+                            msg = Object.values(xhr.responseJSON.errors).flat().join("\n");
+                        }
+                        showNotification(msg, "danger");
+                    },
+                    complete: hideLoader
+                });
+            });
 
-                // Reset title
-                $('#manageResourceModalTitle').text('Add / Edit Resource');
+            // Submit Edit Form
+            $('#manage-resource-editForm').on('submit', function(e) {
+                e.preventDefault();
+                if (!$(this).valid()) return;
 
-                // Reset all forms and selects
-                $('form').each(function() {
+                const id = $(this).attr('data-id');
+                const formData = new FormData(this);
+                formData.append('_method', 'PUT');
+
+                showLoader();
+                $.ajax({
+                    url: "/resources/" + id,
+                    method: "POST",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        if (response.success) {
+                            showNotification(response.message, 'success');
+                            $('.back-to-resource-list').first().trigger('click');
+                            loadResources();
+                        }
+                    },
+                    error: function(xhr) {
+                        let msg = "Failed to update resource";
+                        if (xhr.responseJSON?.errors) {
+                            msg = Object.values(xhr.responseJSON.errors).flat().join("\n");
+                        }
+                        showNotification(msg, "danger");
+                    },
+                    complete: hideLoader
+                });
+            });
+
+            function resetResourceModalUI() {
+                // Thoroughly clear everything
+                $('#manage-resource-formsArea, #manage-resource-addForm, #manage-resource-editForm').addClass(
+                    'd-none');
+                $('#manage-resource-listView').removeClass('d-none');
+                $('#manageResourceModalTitle').text('Manage Resources');
+                $('#resourceListSearch').val('');
+                resourceSearchTerm = '';
+
+                // Reset forms
+                const forms = $('#manage-resource-addForm, #manage-resource-editForm');
+                forms.each(function() {
                     this.reset();
+                    if ($(this).data('validator')) {
+                        $(this).data('validator').resetForm();
+                    }
                 });
 
-                $('.select-search').val(null).trigger('change');
+                // Clear Select2 & Errors
+                $('.select-search, #manage-resource-statusAdd, #manage-resource-editStatus').val(null).trigger(
+                    'change');
+                $('.is-invalid').removeClass('is-invalid');
+            }
 
-                // Reset dropdown values
-                $('#manage-resource-deptSelect').val(null).trigger('change');
-
-                // Reset dropdown values
-                $('#manage-resource-editDept').val(null).trigger('change');
-
-                // Reset form validation errors
-                setTimeout(() => {
-                    $('#manage-resource-addForm').validate().resetForm();
-                    $('#manage-resource-editForm').validate().resetForm();
-                }, 1500);
-            });
-
-            // Reset on show as well (ensures clean state)
-            $('#manageResourceModal').on('show.bs.modal', function() {
-                // Reset all forms and selects
-                $('form').each(function() {
-                    this.reset();
-                })
-
-                $('.select-search').val(null).trigger('change');
-
-                // Reset form validation errors
-                setTimeout(() => {
-                    $('#manage-resource-addForm').validate().resetForm();
-                    $('#manage-resource-editForm').validate().resetForm();
-                }, 1500);
-            });
-
-            /* Custom jQuery Validate methods for resources */
-            // Letters & spaces only (no special characters, no numbers)
-            $.validator.addMethod("lettersOnly", function(value, element) {
-                return this.optional(element) || /^[a-zA-Z\s]+$/.test(value);
-            }, "Only letters and spaces are allowed");
-
-            // Integer only
-            $.validator.addMethod("integerOnly", function(value, element) {
-                return this.optional(element) || /^[0-9]+$/.test(value);
-            }, "Only whole numbers are allowed");
-
-            const resourceValidationRules = {
+            // Resource form validation rules
+            const resourceRules = {
                 name: {
                     required: true,
                     minlength: 2,
-                    maxlength: 100,
-                    lettersOnly: true
+                    maxlength: 100
                 },
                 email: {
                     required: true,
@@ -2296,213 +2468,27 @@
                 dept_id: {
                     required: true
                 },
-                role: {
-                    minlength: 2,
-                    maxlength: 50,
-                    lettersOnly: true
-                },
                 daily_capacity: {
-                    integerOnly: true,
-                    min: 0,
-                    max: 10,
-                },
-                total_hours: {
-                    integerOnly: true,
-                    min: 0,
-                    max: 200
-                },
-                leave_hours: {
-                    integerOnly: true,
-                    min: 0,
-                    max: 200
+                    required: true,
+                    min: 0.5,
+                    max: 24
                 }
             };
 
-            const resourceValidationMessages = {
-                name: {
-                    required: "Full name is required",
-                    minlength: "Minimum 2 characters required",
-                    maxlength: "Maximum 100 characters allowed"
-                },
-                email: {
-                    required: "Email is required",
-                    email: "Enter a valid email address"
-                },
-                dept_id: {
-                    required: "Department is required"
-                },
-                role: {
-                    minlength: "Minimum 2 characters required",
-                    maxlength: "Maximum 50 characters allowed"
-                },
-                daily_capacity: {
-                    integerOnly: "Daily capacity must be a number",
-                    min: "Minimum value is 0",
-                    max: "Maximum value is 10"
-                },
-                total_hours: {
-                    integerOnly: "Total hours must be a number",
-                    min: "Minimum value is 0",
-                    max: "Maximum value is 200"
-                },
-                leave_hours: {
-                    integerOnly: "Leave hours must be a number",
-                    min: "Minimum value is 0",
-                    max: "Maximum value is 200"
-                }
-            };
-
-            $('#manage-resource-deptSelect').on('change', function() {
-                $('#manage-resource-deptSelect').valid(); // trigger validation on select change
-            });
-
-            $('#manage-resource-editDept').on('change', function() {
-                $('#manage-resource-editDept').valid(); // trigger validation on select change
-            });
-
-            // Add resource form validation & AJAX submit
-            // Initialize jQuery Validation for Add resource
-            $("#manage-resource-addForm").validate({
+            $('#manage-resource-addForm').validate({
+                rules: resourceRules,
                 errorElement: "span",
-                errorClass: "error",
-
-                highlight: function(element) {
-                    $(element).addClass("is-invalid");
-                },
-                unhighlight: function(element) {
-                    $(element).removeClass("is-invalid");
-                },
-
-                errorPlacement: function(error, element) {
-                    if (element.hasClass('select-search')) {
-                        error.insertAfter(element.next('.select2'));
-                    } else {
-                        error.insertAfter(element);
-                    }
-                },
-
-                rules: resourceValidationRules,
-                messages: resourceValidationMessages,
-
-                submitHandler: function(form) {
-                    let formData = new FormData(form);
-
-                    $.ajax({
-                        url: "/resources",
-                        method: "POST",
-                        data: formData,
-                        contentType: false,
-                        processData: false,
-
-                        beforeSend: function() {
-                            $('#manage-resource-addForm button[type="submit"]')
-                                .prop(
-                                    'disabled', true).text("Saving...");
-                            $('.error-msg').remove(); // remove old errors
-                            showLoader();
-                        },
-                        success: function(response) {
-                            showNotification("Resource added successfully!",
-                                'success');
-
-                            $('#manageResourceModal').modal('hide');
-
-                            // Optional: Refresh table or page
-                            if (typeof refreshResourceTable === "function") {
-                                refreshResourceTable();
-                            }
-                        },
-                        error: function(xhr) {
-                            let msg = "Failed to add resource";
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                msg = xhr.responseJSON.message;
-                            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                                msg = Object.values(xhr.responseJSON.errors).flat().join(
-                                    "\n");
-                            }
-                            showNotification(msg, "danger");
-                        },
-                        complete: function() {
-                            $('#manage-resource-addForm button[type="submit"]')
-                                .prop(
-                                    'disabled', false).html(
-                                    '<i class="fas fa-save me-2"></i> Save');
-                            hideLoader();
-                        }
-                    });
-                }
+                errorClass: "error text-danger small",
+                highlight: (el) => $(el).addClass("is-invalid"),
+                unhighlight: (el) => $(el).removeClass("is-invalid")
             });
 
-            // Update resource form validation & AJAX submit
-            $("#manage-resource-editForm").validate({
+            $('#manage-resource-editForm').validate({
+                rules: resourceRules,
                 errorElement: "span",
-                errorClass: "error",
-
-                highlight: function(element) {
-                    $(element).addClass("is-invalid");
-                },
-                unhighlight: function(element) {
-                    $(element).removeClass("is-invalid");
-                },
-
-                errorPlacement: function(error, element) {
-                    if (element.hasClass('select-search')) {
-                        error.insertAfter(element.next('.select2'));
-                    } else {
-                        error.insertAfter(element);
-                    }
-                },
-
-                rules: resourceValidationRules,
-                messages: resourceValidationMessages,
-
-                submitHandler: function(form) {
-                    let id = $('#manage-resource-editSelect').val();
-                    let formData = new FormData(form);
-                    formData.append('_method', 'PUT');
-
-                    $.ajax({
-                        url: "/resources/" + id,
-                        method: "POST", // Laravel PUT via method spoofing
-                        data: formData,
-                        contentType: false,
-                        processData: false,
-                        beforeSend: function() {
-                            $('#manage-resource-editForm button[type="submit"]')
-                                .prop(
-                                    'disabled', true).text("Updating...");
-                            $('.error-msg').remove();
-                            showLoader();
-                        },
-                        success: function(response) {
-                            showNotification("Resource updated successfully!",
-                                'success');
-
-                            $('#manageResourceModal').modal('hide');
-
-                            if (typeof refreshResourceTable === "function") {
-                                refreshResourceTable();
-                            }
-                        },
-                        error: function(xhr) {
-                            let msg = "Failed to update resource";
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                msg = xhr.responseJSON.message;
-                            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-                                msg = Object.values(xhr.responseJSON.errors).flat().join(
-                                    "\n");
-                            }
-                            showNotification(msg, "danger");
-                        },
-                        complete: function() {
-                            $('#manage-resource-editForm button[type="submit"]')
-                                .prop(
-                                    'disabled', false).html(
-                                    '<i class="fas fa-save me-2"></i> Update');
-                            hideLoader();
-                        },
-                    });
-                }
+                errorClass: "error text-danger small",
+                highlight: (el) => $(el).addClass("is-invalid"),
+                unhighlight: (el) => $(el).removeClass("is-invalid")
             });
 
             // Helper to refresh resource table fragment after add/update
@@ -2841,8 +2827,12 @@
                                                     </div>
                                                 </div>
                                                 <div class="holidays-item-actions">
-                                                    <button class="btn btn-sm btn-outline-primary leave-edit" data-id="${l.id}">Edit</button>
-                                                    <button class="btn btn-sm btn-outline-danger leave-delete" data-id="${l.id}">Delete</button>
+                                                    <button class="btn btn-sm btn-dark border-secondary border-opacity-50 leave-edit px-2" data-id="${l.id}" title="Edit Leave">
+                                                        <i class="fas fa-pencil-alt text-primary opacity-75"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-dark border-secondary border-opacity-50 leave-delete px-2" data-id="${l.id}" title="Delete Leave">
+                                                        <i class="fas fa-trash-alt text-danger opacity-75"></i>
+                                                    </button>
                                                 </div>
                                             </div>
                                         `;
@@ -2928,38 +2918,54 @@
                 $('#leaveBtnText').text('Update Leave');
             });
 
-            // Delete leave with fade out
+            // Delete leave with fade out and confirmation
             $('#leaveList').on('click', '.leave-delete', function() {
                 const id = $(this).data('id');
                 const item = $(this).closest('.holidays-item');
+                const resourceInfo = item.find('.holidays-item-date').text().trim().split('•')[0].trim();
 
-                $.ajax({
-                    url: `/leaves/${id}`,
-                    type: 'DELETE',
-                    beforeSend: () => {
-                        // Optionally show loader
-                        showLoader();
-                    },
-                    success: res => {
-                        item.fadeOut(300, function() {
-                            $(this).remove();
-                            if (!$('#leaveList').children().length) {
-                                $('#leaveList').html(
-                                    '<div class="holidays-empty-state">No leaves added yet</div>'
-                                );
+                Swal.fire({
+                    title: 'Delete Leave?',
+                    text: `Are you sure you want to delete the leave for ${resourceInfo}?`,
+                    icon: 'warning',
+                    background: '#1e293b',
+                    color: '#e5e7eb',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#334155',
+                    confirmButtonText: 'Yes, delete it!',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.ajax({
+                            url: `/leaves/${id}`,
+                            type: 'DELETE',
+                            beforeSend: () => {
+                                showLoader();
+                            },
+                            success: (res) => {
+                                item.fadeOut(300, function() {
+                                    $(this).remove();
+                                    if (!$('#leaveList').children().length) {
+                                        $('#leaveList').html(
+                                            '<div class="holidays-empty-state">No leaves added yet</div>'
+                                        );
+                                    }
+                                });
+                                showNotification(res.message || "Leave deleted",
+                                    "success");
+                            },
+                            error: (xhr) => {
+                                let msg = "Failed to delete leave";
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    msg = xhr.responseJSON.message;
+                                }
+                                showNotification(msg, "danger");
+                            },
+                            complete: () => {
+                                hideLoader();
                             }
                         });
-                        showNotification(res.message || "Leave deleted", "success");
-                    },
-                    error: (xhr) => {
-                        let msg = "Failed to delete leave";
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            msg = xhr.responseJSON.message;
-                        }
-                        showNotification(msg, "danger");
-                    },
-                    complete: () => {
-                        hideLoader();
                     }
                 });
             });

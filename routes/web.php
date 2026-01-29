@@ -76,9 +76,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/capacity', [CapacityDashboardController::class, 'dashboard'])->name('capacity.dashboard');
     Route::get('/resource-capacity', [CapacityDashboardController::class, 'getResourceCapacity']);
 
+    Route::get('/resources', [ResourceController::class, 'index'])->name('resources.index');
     Route::get('/resources/{id}', [ResourceController::class, 'show']);
     Route::post('/resources', [ResourceController::class, 'store']);
     Route::put('/resources/{id}', [ResourceController::class, 'update']);
+    Route::delete('/resources/{id}', [ResourceController::class, 'destroy'])->name('resources.destroy');
 
         
     Route::prefix('leaves')->group(function () {

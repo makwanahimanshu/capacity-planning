@@ -829,9 +829,9 @@
                 <td class="text-center">${index + 1}</td>
                 <td class="text-center">
                     ${r.projects?.length ? `
-                                                                                                                    <span class="toggle-icon"
-                                                                                                                        onclick="toggleResourceProjects(${r.id}, this)">+</span>
-                                                                                                                ` : ''}
+                                                                                                                        <span class="toggle-icon"
+                                                                                                                            onclick="toggleResourceProjects(${r.id}, this)">+</span>
+                                                                                                                    ` : ''}
                 </td>
                 <td>${r.name}</td>
                 <td>${r.department}</td>
@@ -897,12 +897,12 @@
             </thead>
             <tbody>
                 ${projects.map(p => `
-                                                                                                                                                                                                                <tr>
-                                                                                                                                                                                                                    <td>${p.project_name}</td>
-                                                                                                                                                                                                                    <td>${p.role}</td>
-                                                                                                                                                                                                                    <td>${p.hours}</td>
-                                                                                                                                                                                                                </tr>
-                                                                                                                                                                                                            `).join('')}
+                                                                                                                                                                                                                    <tr>
+                                                                                                                                                                                                                        <td>${p.project_name}</td>
+                                                                                                                                                                                                                        <td>${p.role}</td>
+                                                                                                                                                                                                                        <td>${p.hours}</td>
+                                                                                                                                                                                                                    </tr>
+                                                                                                                                                                                                                `).join('')}
             </tbody>
         </table>
     `;
@@ -1018,10 +1018,10 @@
             <td>${index + 1}</td>
             <td class="text-center">
                 ${p.resources?.length ? `
-                                                                                                                                                                                                                <span class="toggle-icon"
-                                                                                                                                                                                                                      onclick="toggleProjectResources(${p.project_id}, this)">
-                                                                                                                                                                                                                    +
-                                                                                                                                                                                                                </span>` : ''}
+                                                                                                                                                                                                                    <span class="toggle-icon"
+                                                                                                                                                                                                                          onclick="toggleProjectResources(${p.project_id}, this)">
+                                                                                                                                                                                                                        +
+                                                                                                                                                                                                                    </span>` : ''}
             </td>
             <td>${p.project_name}</td>
             <td>${p.project_manager}</td>
@@ -1058,15 +1058,15 @@
             </thead>
             <tbody>
                 ${resources.map(r => `
-                                                                                                                                                                                                                <tr>
-                                                                                                                                                                                                                    <td>${r.name}</td>
-                                                                                                                                                                                                                    <td>${r.role}</td>
-                                                                                                                                                                                                                    <td>${r.hours}</td>
-                                                                                                                                                                                                                    <td>
-                                                                                                                                                                                                                        <span class="duration-wrapper">
-                                                                                                                                                                                                                            <span class="duration-text">${r.duration}</span>
+                                                                                                                                                                                                                    <tr>
+                                                                                                                                                                                                                        <td>${r.name}</td>
+                                                                                                                                                                                                                        <td>${r.role}</td>
+                                                                                                                                                                                                                        <td>${r.hours}</td>
+                                                                                                                                                                                                                        <td>
+                                                                                                                                                                                                                            <span class="duration-wrapper">
+                                                                                                                                                                                                                                <span class="duration-text">${r.duration}</span>
 
-                                                                                                                                                                                                                            ${r.weekly_tooltip ? `
+                                                                                                                                                                                                                                ${r.weekly_tooltip ? `
                                     <span class="info-icon-wrapper duration-tooltip"
                                         tabindex="0"
                                         aria-label="Weekly allocation details"
@@ -1074,10 +1074,10 @@
                                         <i class="fas fa-info-circle"></i>
                                     </span>
                                 ` : ''}
-                                                                                                                                                                                                                        </span>
-                                                                                                                                                                                                                    </td>
-                                                                                                                                                                                                                </tr>
-                                                                                                                                                                                                            `).join('')}
+                                                                                                                                                                                                                            </span>
+                                                                                                                                                                                                                        </td>
+                                                                                                                                                                                                                    </tr>
+                                                                                                                                                                                                                `).join('')}
             </tbody>
         </table>
     `;

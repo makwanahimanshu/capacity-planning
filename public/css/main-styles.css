@@ -78,7 +78,8 @@ body {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.form-control, .form-select {
+.form-control,
+.form-select {
     background-color: var(--input-bg);
     border: 1px solid var(--input-border);
     color: var(--body-text-color);
@@ -87,7 +88,8 @@ body {
     transition: all 0.3s ease;
 }
 
-.form-control:focus, .form-select:focus {
+.form-control:focus,
+.form-select:focus {
     background-color: var(--input-bg);
     border-color: var(--accent-blue);
     color: var(--body-text-color);
@@ -409,8 +411,15 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Status indicators */
@@ -422,9 +431,17 @@ body {
     margin-right: 0.5rem;
 }
 
-.status-available { background-color: var(--success-green); }
-.status-warning { background-color: var(--warning-yellow); }
-.status-overallocated { background-color: var(--danger-red); }
+.status-available {
+    background-color: var(--success-green);
+}
+
+.status-warning {
+    background-color: var(--warning-yellow);
+}
+
+.status-overallocated {
+    background-color: var(--danger-red);
+}
 
 /* Enhanced tooltips */
 .tooltip-inner {
@@ -476,6 +493,7 @@ span.select2-selection__choice__remove {
 .custom-modal .modal-title {
     background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -588,7 +606,8 @@ span.select2-selection__choice__remove {
 
 /* Make only the form content scrollable */
 .form-scrollable {
-    max-height: 60vh; /* adjust as needed */
+    max-height: 60vh;
+    /* adjust as needed */
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 10px;
@@ -597,7 +616,7 @@ span.select2-selection__choice__remove {
 /* Optional: thin, smooth scrollbar for form */
 .form-scrollable {
     scrollbar-width: thin;
-    scrollbar-color: var(--accent-blue) rgba(255,255,255,0.05);
+    scrollbar-color: var(--accent-blue) rgba(255, 255, 255, 0.05);
 }
 
 .form-scrollable::-webkit-scrollbar {
@@ -610,7 +629,7 @@ span.select2-selection__choice__remove {
 }
 
 .form-scrollable::-webkit-scrollbar-track {
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 
@@ -628,7 +647,8 @@ span.error {
 input::placeholder,
 textarea::placeholder {
     color: #999 !important;
-    opacity: 1; /* Ensures consistent visibility across browsers */
+    opacity: 1;
+    /* Ensures consistent visibility across browsers */
 }
 
 /* For inputs and textareas without placeholder attribute (fallback color) */
@@ -695,6 +715,7 @@ textarea {
 .holidays-modal .modal-title {
     background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     font-weight: 600;
 }
@@ -873,8 +894,15 @@ textarea {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .holidays-empty-state {
@@ -886,7 +914,8 @@ textarea {
 
 
 .day-input.holiday-day {
-    background-color: #ffe6e6; /* light red */
+    background-color: #ffe6e6;
+    /* light red */
     cursor: not-allowed;
 }
 
@@ -1008,7 +1037,7 @@ input.form-control.day-input.leave-day {
 /* Button Style ------------------------ */
 
 /* Button Style ------------------------ */
- /* .project-tools {
+/* .project-tools {
     display: flex;
     flex-wrap: nowrap;
     gap: 0.5rem;
@@ -1028,7 +1057,7 @@ input.form-control.day-input.leave-day {
     font-size: 0.8rem;
     padding: 0.4rem 0.8rem;
 } */
- /* Project tools container */
+/* Project tools container */
 .project-tools {
     display: flex;
     align-items: center;
@@ -1076,13 +1105,13 @@ input.form-control.day-input.leave-day {
 /* Hover feedback */
 .project-tools .btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 
 .tool-week-select:focus {
     border-color: #6f42c1;
-    box-shadow: 0 0 0 2px rgba(111,66,193,.25);
+    box-shadow: 0 0 0 2px rgba(111, 66, 193, .25);
 }
 
 /* Button Style ------------------------ */
@@ -1107,6 +1136,7 @@ input.form-control.day-input.leave-day {
 .manage-resource-modal .modal-title {
     background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -1124,7 +1154,7 @@ input.form-control.day-input.leave-day {
 .manage-resource-modal .form-select:focus,
 .manage-resource-modal textarea:focus {
     border-color: var(--accent-blue);
-    box-shadow: 0 0 0 0.2rem rgba(59,130,246,0.3);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.3);
 }
 
 /* Select2 */
@@ -1145,18 +1175,20 @@ input.form-control.day-input.leave-day {
     padding-right: 10px;
 
     scrollbar-width: thin;
-    scrollbar-color: var(--accent-blue) rgba(255,255,255,0.05);
+    scrollbar-color: var(--accent-blue) rgba(255, 255, 255, 0.05);
 }
 
 .manage-resource-scroll::-webkit-scrollbar {
     width: 6px;
 }
+
 .manage-resource-scroll::-webkit-scrollbar-thumb {
     background: var(--accent-blue);
     border-radius: 10px;
 }
+
 .manage-resource-scroll::-webkit-scrollbar-track {
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 /* Footer */
@@ -1181,6 +1213,7 @@ textarea::placeholder {
     margin-bottom: 6px;
     font-weight: 600;
 }
+
 /* Resource Management Modal Styles - End */
 
 
@@ -1193,15 +1226,15 @@ textarea::placeholder {
     height: 44px;
     padding: 8px 12px;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.15);
-    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
     color: #fff;
 }
 
 .holidays-form-control:focus {
     outline: none;
     border-color: #3b82f6;
-    box-shadow: 0 0 0 0.2rem rgba(59,130,246,0.25);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
 }
 
 textarea.holidays-form-control {
@@ -1212,12 +1245,14 @@ textarea.holidays-form-control {
 
 /* Flatpickr Dark UI Fix */
 .flatpickr-calendar {
-    background: #0f172a; /* slate-900 */
+    background: #0f172a;
+    /* slate-900 */
     border: 1px solid #334155;
     border-radius: 12px;
     color: #e5e7eb;
     box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6);
-    z-index: 1065 !important; /* Bootstrap modal fix */
+    z-index: 1065 !important;
+    /* Bootstrap modal fix */
 }
 
 .flatpickr-months {
@@ -1347,4 +1382,253 @@ input.form-control.day-input.half-leave-day {
     background-color: #f59999;
     color: #000;
     pointer-events: auto;
+}
+
+/* Consolidated Resource Management Styles */
+.manage-resource-modal {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--card-border) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+
+.manage-resource-modal .modal-content {
+    background: transparent !important;
+    border: none;
+}
+
+.manage-resource-modal .modal-sticky-zone {
+    background: rgba(15, 23, 42, 0.2);
+    backdrop-filter: blur(10px);
+    z-index: 20;
+}
+
+/* Integrated Table Style (Removed nested cards) */
+.manage-resource-modal .resource-management-table {
+    background: transparent !important;
+    border: none !important;
+}
+
+.manage-resource-modal .resource-management-table thead th {
+    background: rgba(30, 41, 59, 0.95) !important;
+    backdrop-filter: blur(5px);
+    border-bottom: 1px solid var(--card-border) !important;
+    color: var(--accent-blue) !important;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 1.25rem 1rem;
+}
+
+.manage-resource-modal .resource-management-table td {
+    background: transparent !important;
+    color: var(--body-text-color) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding: 1rem;
+}
+
+.manage-resource-modal .resource-row:hover {
+    background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+/* Custom Scrollbar for Infinite Scroll Area */
+#resourceTableScroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+#resourceTableScroll::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+#resourceTableScroll::-webkit-scrollbar-thumb {
+    background: var(--card-border);
+    border-radius: 10px;
+}
+
+#resourceTableScroll::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-blue);
+}
+
+.search-wrapper .input-group-merge {
+    height: 45px;
+    background: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid var(--card-border);
+}
+
+.stats-icon {
+    background: rgba(59, 130, 246, 0.1) !important;
+    color: var(--accent-blue) !important;
+    border: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.input-group-merge:focus-within {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.input-group-merge .form-control {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: white !important;
+    height: 42px;
+}
+
+/* Select2 Dark Theme within Modal */
+.manage-resource-modal .select2-container--default .select2-selection--single {
+    background-color: var(--input-bg) !important;
+    border: 1px solid var(--input-border) !important;
+    border-radius: 12px !important;
+    height: 45px !important;
+    display: flex;
+    align-items: center;
+}
+
+.manage-resource-modal .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--body-text-color) !important;
+    padding-left: 12px !important;
+    padding-right: 35px !important; /* Make room for clear button */
+}
+
+.manage-resource-modal .select2-container--default .select2-selection--single .select2-selection__clear {
+    position: absolute !important;
+    right: 32px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin-right: 0 !important;
+    font-weight: bold !important;
+    color: var(--white) !important;
+    opacity: 0.5;
+    font-size: 1.1rem;
+}
+
+.manage-resource-modal .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+    opacity: 1;
+    color: var(--accent-blue) !important;
+}
+
+.manage-resource-modal .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 43px !important;
+    right: 8px !important;
+}
+
+.bg-gradient-premium {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)) !important;
+    border: none;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.section-label {
+    color: var(--accent-blue);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 2px;
+    margin-bottom: 1.25rem;
+    display: block;
+}
+
+@keyframes fadeInModal {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.manage-resource-scroll {
+    max-height: 55vh;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.manage-resource-scroll::-webkit-scrollbar {
+    width: 5px;
+}
+
+.manage-resource-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--card-border);
+    border-radius: 10px;
+}
+
+.manage-resource-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent-blue);
+}
+
+/* Custom Pagination Styling Refinement */
+.pagination-sm .page-link {
+    background: var(--panel-bg);
+    border: 1px solid var(--card-border);
+    color: var(--body-text-color);
+    border-radius: 8px !important;
+    margin: 0 3px;
+    padding: 0.5rem 0.8rem;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+}
+
+.pagination-sm .page-item.active .page-link {
+    background: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+}
+
+.pagination-sm .page-link:hover:not(.disabled) {
+    background: var(--hover-bg);
+    border-color: var(--accent-blue);
+    color: #fff;
+}
+
+.input-group-merge {
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.input-group-merge:focus-within {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.input-group-merge .input-group-text,
+.input-group-merge .form-control {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.input-group-merge .input-group-text {
+    padding-right: 0;
+    color: var(--text-muted);
+}
+
+.input-group-merge .form-control {
+    padding-left: 10px;
+    color: var(--body-text-color);
+}
+
+.text-muted-bright {
+    color: #cbd5e1 !important;
+    /* Lighter than text-muted for better visibility */
+}
+
+.x-small-icon {
+    font-size: 0.75rem;
 }

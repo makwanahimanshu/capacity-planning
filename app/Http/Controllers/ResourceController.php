@@ -8,6 +8,29 @@ use Illuminate\Http\Request;
 class ResourceController extends Controller
 {
     /**
+     * GET /resources
+     * List resources with search and pagination
+     */
+    public function index(Request $request)
+    {
+        $search = $request->query('search');
+        $perPage = $request->query('per_page', 5);
+
+        $query = Resource::with('department:id,name');
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $resources = $query->paginate($perPage);
+
+        return response()->json($resources);
+    }
+
+    /**
      * GET /resources/{id}
      * Fetch single resource for Edit Modal
      */
@@ -17,18 +40,18 @@ class ResourceController extends Controller
 
         if (!$resource) {
             return response()->json([
-                'status' => 404,
+                'success' => false,
                 'message' => 'Resource not found',
             ], 404);
         }
 
-        $resource->total_hours    = (int) $resource->total_hours;
-        $resource->leave_hours    = (int) $resource->leave_hours;
-        $resource->daily_capacity = (int) $resource->daily_capacity;
+        $resource->total_hours    = (float) $resource->total_hours;
+        $resource->leave_hours    = (float) $resource->leave_hours;
+        $resource->daily_capacity = (float) $resource->daily_capacity;
         $resource->status         = (int) $resource->status;
 
         return response()->json([
-            'status' => 200,
+            'success' => true,
             'data' => $resource
         ]);
     }
@@ -45,22 +68,22 @@ class ResourceController extends Controller
             'email'     => 'required|email|unique:resources,email',
             'dept_id'   => 'required|integer',
             'role'      => 'nullable|string|max:255',
-            'daily_capacity' => 'required|numeric|min:1',
+            'daily_capacity' => 'required|numeric|min:0.5',
             'total_hours'    => 'nullable|numeric|min:0',
             'leave_hours'    => 'nullable|numeric|min:0',
             'status'         => 'required|in:0,1',
         ]);
 
         $validated['is_project_manager'] = $request->has('is_project_manager') ? 1 : 0;
-        $validated['total_hours'] = $validated['total_hours'] ? $validated['total_hours'] : 0;
-        $validated['leave_hours'] = $validated['leave_hours'] ? $validated['leave_hours'] : 0;
-        $validated['status'] = $validated['status'] ? $validated['status'] : 1;
-        $validated['role'] = $validated['role'] ? $validated['role'] : null;
+        $validated['total_hours'] = $request->input('total_hours', 0);
+        $validated['leave_hours'] = $request->input('leave_hours', 0);
+        $validated['status'] = $request->input('status', 1);
+        $validated['role'] = $request->input('role');
 
         $resource = Resource::create($validated);
 
         return response()->json([
-            'status' => 200,
+            'success' => true,
             'message' => 'Resource created successfully',
             'data' => $resource
         ]);
@@ -77,7 +100,7 @@ class ResourceController extends Controller
 
         if (!$resource) {
             return response()->json([
-                'status' => 404,
+                'success' => false,
                 'message' => 'Resource not found'
             ], 404);
         }
@@ -87,24 +110,47 @@ class ResourceController extends Controller
             'email'     => 'required|email|unique:resources,email,' . $id,
             'dept_id'   => 'required|integer',
             'role'      => 'nullable|string|max:255',
-            'daily_capacity' => 'required|numeric|min:1',
+            'daily_capacity' => 'required|numeric|min:0.5',
             'total_hours'    => 'nullable|numeric|min:0',
             'leave_hours'    => 'nullable|numeric|min:0',
             'status'         => 'required|in:0,1',
         ]);
 
         $validated['is_project_manager'] = $request->has('is_project_manager') ? 1 : 0;
-        $validated['total_hours'] = $validated['total_hours'] ? $validated['total_hours'] : 0;
-        $validated['leave_hours'] = $validated['leave_hours'] ? $validated['leave_hours'] : 0;
-        $validated['status'] = $validated['status'] ? $validated['status'] : 1;
-        $validated['role'] = $validated['role'] ? $validated['role'] : null;
+        $validated['total_hours'] = $request->input('total_hours', 0);
+        $validated['leave_hours'] = $request->input('leave_hours', 0);
+        $validated['status'] = $request->input('status', 1);
+        $validated['role'] = $request->input('role');
 
         $resource->update($validated);
 
         return response()->json([
-            'status' => 200,
+            'success' => true,
             'message' => 'Resource updated successfully',
             'data' => $resource
+        ]);
+    }
+
+    /**
+     * DELETE /resources/{id}
+     * Remove a resource (soft delete)
+     */
+    public function destroy($id)
+    {
+        $resource = Resource::find($id);
+
+        if (!$resource) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Resource not found'
+            ], 404);
+        }
+
+        $resource->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Resource deleted successfully'
         ]);
     }
 }
