@@ -278,12 +278,12 @@ class CapacityPlanningController extends Controller
             // Sum hours for this resource
             $thisResourceTotal = array_sum(array_column($updatedDaily, 'hours'));
             
-            if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
-                 return response()->json([
-                    'success' => false,
-                    'message' => "Allocation exceeds project total hours limit ({$project->total_hours} hrs)."
-                ], 422);
-            }
+            // if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
+            //      return response()->json([
+            //         'success' => false,
+            //         'message' => "Allocation exceeds project total hours limit ({$project->total_hours} hrs)."
+            //     ], 422);
+            // }
 
             // --- Recalculate months_and_hours based on daily_hours ---
             $monthsGrouped = [];
@@ -417,14 +417,14 @@ class CapacityPlanningController extends Controller
                          return array_sum(array_column($months, 'allocated_hours'));
                     });
 
-                if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
-                     // Rollback and return error
-                     DB::rollBack();
-                     return response()->json([
-                        'success' => false,
-                        'message' => "Allocation exceeds project limit ({$project->total_hours} hrs) for project: {$project->name}."
-                    ], 422);
-                }
+                // if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
+                //      // Rollback and return error
+                //      DB::rollBack();
+                //      return response()->json([
+                //         'success' => false,
+                //         'message' => "Allocation exceeds project limit ({$project->total_hours} hrs) for project: {$project->name}."
+                //     ], 422);
+                // }
 
                 $allocation->daily_hours = json_encode($updatedDaily);
 
@@ -544,13 +544,13 @@ class CapacityPlanningController extends Controller
                              return array_sum(array_column($months, 'allocated_hours'));
                         });
 
-                    if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
-                         DB::rollBack();
-                         return response()->json([
-                            'success' => false,
-                            'message' => "Allocation exceeds project limit ({$project->total_hours} hrs) for project: {$project->name}."
-                        ], 422);
-                    }
+                    // if (($currentTotalAllocated + $thisResourceTotal) > $project->total_hours) {
+                    //      DB::rollBack();
+                    //      return response()->json([
+                    //         'success' => false,
+                    //         'message' => "Allocation exceeds project limit ({$project->total_hours} hrs) for project: {$project->name}."
+                    //     ], 422);
+                    // }
 
                     // --- Recalculate months_and_hours ---
                     $monthsGrouped = [];

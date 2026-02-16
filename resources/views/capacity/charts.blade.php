@@ -334,6 +334,10 @@
 
         let isLoading = false;
 
+        // Store last rendered resource list and totals so search can recalc footer
+        let lastRenderedResources = [];
+        let lastRenderedTotals = null;
+
         // Initialize month input to current month
         function initMonth() {
             let today = new Date();
@@ -762,6 +766,9 @@
 
         // Table 1: Resource List -----------------------------------------------------------------
         function renderTable(resources, totals = {}) {
+            lastRenderedResources = resources || [];
+            lastRenderedTotals = totals && Object.keys(totals).length ? totals : null;
+
             // let renderTableBody = document.getElementById('resourceTableBody');
             // if (!renderTableBody) return;
 
@@ -829,9 +836,9 @@
                 <td class="text-center">${index + 1}</td>
                 <td class="text-center">
                     ${r.projects?.length ? `
-                                                                                                                        <span class="toggle-icon"
-                                                                                                                            onclick="toggleResourceProjects(${r.id}, this)">+</span>
-                                                                                                                    ` : ''}
+                                                                                                                                <span class="toggle-icon"
+                                                                                                                                    onclick="toggleResourceProjects(${r.id}, this)">+</span>
+                                                                                                                            ` : ''}
                 </td>
                 <td>${r.name}</td>
                 <td>${r.department}</td>
@@ -881,6 +888,43 @@
             initResourceSearch();
         }
 
+        // Update Resource List table footer with totals (full or filtered by search)
+        function updateResourceTableFooter(filteredResources, useOriginalTotals) {
+            let table = document.getElementById('resourceTableBody');
+            if (!table) return;
+            table = table.closest('table');
+            let tfoot = table.querySelector('tfoot');
+            if (!tfoot) return;
+
+            let totalHours = 0,
+                totalHoliday = 0,
+                totalLeave = 0,
+                totalAllocated = 0,
+                totalAvailable = 0;
+            if (useOriginalTotals && lastRenderedTotals) {
+                totalHours = lastRenderedTotals.total_hours_sum_for_table ?? 0;
+                totalHoliday = lastRenderedTotals.total_holiday_hours ?? 0;
+                totalLeave = lastRenderedTotals.total_leave_hours ?? 0;
+                totalAllocated = lastRenderedTotals.allocated ?? 0;
+                totalAvailable = lastRenderedTotals.available ?? 0;
+            } else if (filteredResources && filteredResources.length) {
+                totalHours = filteredResources.reduce((s, r) => s + (Number(r.total_hours) || 0), 0);
+                totalHoliday = filteredResources.reduce((s, r) => s + (Number(r.holiday_hours) || 0), 0);
+                totalLeave = filteredResources.reduce((s, r) => s + (Number(r.leave_hours) || 0), 0);
+                totalAllocated = filteredResources.reduce((s, r) => s + (Number(r.allocated_hours) || 0), 0);
+                totalAvailable = filteredResources.reduce((s, r) => s + (Number(r.available_hours) || 0), 0);
+            }
+
+            let cells = tfoot.querySelectorAll('td');
+            if (cells.length >= 8) {
+                cells[3].textContent = Math.round(totalHours * 10) / 10;
+                cells[4].textContent = Math.round(totalHoliday * 10) / 10;
+                cells[5].textContent = Math.round(totalLeave * 10) / 10;
+                cells[6].textContent = Math.round(totalAllocated * 10) / 10;
+                cells[7].textContent = Math.round(totalAvailable * 10) / 10;
+            }
+        }
+
         function renderResourceProjects(projects = []) {
             if (!projects.length) {
                 return `<div class="text-muted text-center">No project allocations.</div>`;
@@ -897,12 +941,12 @@
             </thead>
             <tbody>
                 ${projects.map(p => `
-                                                                                                                                                                                                                    <tr>
-                                                                                                                                                                                                                        <td>${p.project_name}</td>
-                                                                                                                                                                                                                        <td>${p.role}</td>
-                                                                                                                                                                                                                        <td>${p.hours}</td>
-                                                                                                                                                                                                                    </tr>
-                                                                                                                                                                                                                `).join('')}
+                                                                                                                                                                                                                            <tr>
+                                                                                                                                                                                                                                <td>${p.project_name}</td>
+                                                                                                                                                                                                                                <td>${p.role}</td>
+                                                                                                                                                                                                                                <td>${p.hours}</td>
+                                                                                                                                                                                                                            </tr>
+                                                                                                                                                                                                                        `).join('')}
             </tbody>
         </table>
     `;
@@ -951,9 +995,21 @@
             //     showNoResults(tableBody);
             // };
             searchInput.onkeyup = function() {
-                let searchValue = this.value.toLowerCase();
+                let searchValue = (this.value || '').trim().toLowerCase();
 
                 const parentRows = tableBody.querySelectorAll('.resource-row');
+
+                // Filter resources by search (same logic as row visibility) for footer recalc
+                function resourceMatchesSearch(r) {
+                    if (!searchValue) return true;
+                    const name = (r.name || '').toLowerCase();
+                    const dept = (r.department || '').toLowerCase();
+                    const projectMatch = (r.projects || []).some(
+                        p => (p.project_name || '').toLowerCase().includes(searchValue)
+                    );
+                    return name.includes(searchValue) || dept.includes(searchValue) || projectMatch;
+                }
+                const filteredResources = lastRenderedResources.filter(resourceMatchesSearch);
 
                 parentRows.forEach(parent => {
                     const resourceId = parent.dataset.resourceId;
@@ -979,6 +1035,26 @@
                         }
                     }
                 });
+
+                // Dynamic serial number: 1, 2, 3... for visible rows; restore original when no search
+                const visibleRows = [...parentRows].filter(row => row.style.display !== 'none');
+                if (!searchValue) {
+                    lastRenderedResources.forEach((r, index) => {
+                        const row = parentRows[index];
+                        if (row && row.querySelector('td')) row.querySelector('td').textContent = index + 1;
+                    });
+                } else {
+                    visibleRows.forEach((row, index) => {
+                        if (row.querySelector('td')) row.querySelector('td').textContent = index + 1;
+                    });
+                }
+
+                // Update footer totals: full totals when no search, else sum of visible rows
+                if (!searchValue) {
+                    updateResourceTableFooter(null, true);
+                } else {
+                    updateResourceTableFooter(filteredResources, false);
+                }
 
                 showNoResultsGrouped(tableBody, '.resource-row', 11);
             };
@@ -1018,10 +1094,10 @@
             <td>${index + 1}</td>
             <td class="text-center">
                 ${p.resources?.length ? `
-                                                                                                                                                                                                                    <span class="toggle-icon"
-                                                                                                                                                                                                                          onclick="toggleProjectResources(${p.project_id}, this)">
-                                                                                                                                                                                                                        +
-                                                                                                                                                                                                                    </span>` : ''}
+                                                                                                                                                                                                                            <span class="toggle-icon"
+                                                                                                                                                                                                                                  onclick="toggleProjectResources(${p.project_id}, this)">
+                                                                                                                                                                                                                                +
+                                                                                                                                                                                                                            </span>` : ''}
             </td>
             <td>${p.project_name}</td>
             <td>${p.project_manager}</td>
@@ -1058,15 +1134,15 @@
             </thead>
             <tbody>
                 ${resources.map(r => `
-                                                                                                                                                                                                                    <tr>
-                                                                                                                                                                                                                        <td>${r.name}</td>
-                                                                                                                                                                                                                        <td>${r.role}</td>
-                                                                                                                                                                                                                        <td>${r.hours}</td>
-                                                                                                                                                                                                                        <td>
-                                                                                                                                                                                                                            <span class="duration-wrapper">
-                                                                                                                                                                                                                                <span class="duration-text">${r.duration}</span>
+                                                                                                                                                                    <tr>
+                                                                                                                                                                        <td>${r.name}</td>
+                                                                                                                                                                        <td>${r.role}</td>
+                                                                                                                                                                        <td>${r.hours}</td>
+                                                                                                                                                                        <td>
+                                                                                                                                                                            <span class="duration-wrapper">
+                                                                                                                                                                                <span class="duration-text">${r.duration}</span>
 
-                                                                                                                                                                                                                                ${r.weekly_tooltip ? `
+                                                                                                                                                                                ${r.weekly_tooltip ? `
                                     <span class="info-icon-wrapper duration-tooltip"
                                         tabindex="0"
                                         aria-label="Weekly allocation details"
@@ -1074,10 +1150,10 @@
                                         <i class="fas fa-info-circle"></i>
                                     </span>
                                 ` : ''}
-                                                                                                                                                                                                                            </span>
-                                                                                                                                                                                                                        </td>
-                                                                                                                                                                                                                    </tr>
-                                                                                                                                                                                                                `).join('')}
+                                                                                                                                                                                </span>
+                                                                                                                                                                            </td>
+                                                                                                                                                                        </tr>
+                                                                                                                                                                    `).join('')}
             </tbody>
         </table>
     `;

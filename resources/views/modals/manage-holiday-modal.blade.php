@@ -33,6 +33,18 @@
 
                 <hr class="holidays-divider">
 
+                <!-- Holiday list month filter -->
+                <div class="leave-list-filters row g-3 align-items-end mb-3">
+                    <div class="col-auto col-md">
+                        <label class="holidays-label d-block mb-1">Month</label>
+                        <input type="month" id="holidayFilterMonth" class="holidays-form-control leave-filter-input">
+                    </div>
+                    <div class="col-auto">
+                        <label class="holidays-label d-block mb-1 invisible">Apply</label>
+                        <button type="button" id="holidayFilterApply" class="btn btn-primary leave-filter-apply-btn px-4">Apply</button>
+                    </div>
+                </div>
+
                 <div>
                     <label class="holidays-label">Existing Holidays</label>
                     <div class="holidays-list-container" id="holidaysList">

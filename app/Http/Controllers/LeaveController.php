@@ -10,14 +10,27 @@ class LeaveController extends Controller
 {
     /**
      * GET /leaves
-     * List all leaves
+     * List all leaves (optional filters: month YYYY-MM, resource_id)
      */
-    public function index()
+    public function index(Request $request)
     {
-        $leaves = Leave::with('resource:id,name')
-            ->orderBy('start_date', 'desc')
-            ->get();
-            
+        $query = Leave::with('resource:id,name')->orderBy('start_date', 'desc');
+
+        if ($request->filled('resource_id')) {
+            $query->where('resource_id', $request->resource_id);
+        }
+
+        if ($request->filled('month')) {
+            $month = $request->month;
+            if (preg_match('/^\d{4}-\d{2}$/', $month)) {
+                $startOfMonth = Carbon::parse($month . '-01')->startOfDay();
+                $endOfMonth = Carbon::parse($month . '-01')->endOfMonth();
+                $query->where('start_date', '<=', $endOfMonth)
+                    ->where('end_date', '>=', $startOfMonth);
+            }
+        }
+
+        $leaves = $query->get();
 
         return response()->json($leaves);
     }
@@ -127,6 +140,7 @@ class LeaveController extends Controller
 
     /**
      * Shared validation
+     * Start date: any date allowed (including past). End date logic unchanged.
      */
     private function validateLeave(Request $request, $isCreate = true)
     {

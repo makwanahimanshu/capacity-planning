@@ -288,7 +288,7 @@ class CapacityDashboardController extends Controller
                 'id'              => $res->id,
                 'name'            => $res->name,
                 'department'      => $department,
-                'total_hours'     => $totalHours,
+                'total_hours'     => $totalAvailableHours,
                 'holiday_hours'   => $holiday_hours,
                 'allocated_hours' => $allocatedHours,
                 'available_hours' => $availableHours,
@@ -537,7 +537,7 @@ class CapacityDashboardController extends Controller
         return response()->json([
             'total_hours'          => $totalHours,
             'total_hours_sum'      => round($totalHoursSum - ($totalHolidayHours + $totalLeaveHours), 1),
-            'total_hours_sum_for_table'  => $totalHoursSum,
+            'total_hours_sum_for_table'  => round($totalHoursSum - ($totalHolidayHours + $totalLeaveHours), 1),
             'total_holiday_hours'  => $totalHolidayHours,
             'total_leave_hours'    => $totalLeaveHours,
             'available'            => $totalNetAvailable,

@@ -1849,17 +1849,23 @@
                 }
             });
 
-            // Load holidays from server and render the list
+            // Load holidays from server and render the list (optional month filter)
             function loadHolidays() {
-                $.get('/holidays', res => {
+                const params = {};
+                const month = $('#holidayFilterMonth').val();
+                if (month) params.month = month;
+                $.get('/holidays', params, res => {
                     holidays = res || [];
                     renderHolidays();
-
                     $('#holidayForm').validate().resetForm();
                 }).fail(() => {
                     showNotification("Failed to load holidays", "danger");
                 });
             }
+
+            // Holiday list month filter: apply on button click or month change
+            $('#holidayFilterApply').on('click', loadHolidays);
+            $('#holidayFilterMonth').on('change', loadHolidays);
 
             // Render holidays list in the holiday modal
             function renderHolidays() {
@@ -2082,6 +2088,14 @@
                 $("#holidayForm").data('validator').resetForm();
             });
 
+            // On holiday modal show: set default month filter and load list
+            $('#holidayModal').on('shown.bs.modal', function() {
+                if (!$('#holidayFilterMonth').val()) {
+                    $('#holidayFilterMonth').val(new Date().toISOString().slice(0, 7));
+                }
+                loadHolidays();
+            });
+
             // Initial load of holidays
             loadHolidays();
 
@@ -2112,9 +2126,9 @@
             $('#manage-resource-statusAdd, #manage-resource-editStatus').select2({
                 width: '100%',
                 dropdownParent: $('#manageResourceModal'),
-                placeholder: "Search and select status",
-                minimumResultsForSearch: 0, // Always show search box
-                allowClear: true
+                placeholder: "Select status",
+                minimumResultsForSearch: 0,
+                allowClear: false
             });
 
             // Department select2 search placeholder
@@ -2255,6 +2269,7 @@
                 $('#manageResourceModalTitle').text('Add New Resource');
                 $('#manage-resource-addForm')[0].reset();
                 $('#manage-resource-deptSelect').val(null).trigger('change');
+                $('#manage-resource-statusAdd').val('1').trigger('change');
             });
 
             // Edit button click (inline)
@@ -2277,7 +2292,7 @@
                         form.find('[name="dept_id"]').val(data.dept_id).trigger('change');
                         form.find('[name="role"]').val(data.role);
                         form.find('[name="daily_capacity"]').val(data.daily_capacity);
-                        form.find('[name="status"]').val(data.status);
+                        form.find('[name="status"]').val(data.status != null && data.status !== '' ? String(data.status) : '1').trigger('change');
                         form.find('[name="is_project_manager"]').prop('checked', data.is_project_manager ==
                             1);
 
@@ -2347,7 +2362,8 @@
                             success: function(res) {
                                 if (res.success) {
                                     showNotification(res.message, 'success');
-                                    fetchResourceList(resourceCurrentPage);
+                                    // Clear list and refetch from page 1 so deleted row disappears
+                                    fetchResourceList(1, true);
                                     // Also refresh the main resource dropdown
                                     loadResources();
                                 } else {
@@ -2382,6 +2398,7 @@
                         if (response.success) {
                             showNotification(response.message, 'success');
                             $('.back-to-resource-list').first().trigger('click');
+                            fetchResourceList(1, true);
                             loadResources();
                         }
                     },
@@ -2416,6 +2433,7 @@
                         if (response.success) {
                             showNotification(response.message, 'success');
                             $('.back-to-resource-list').first().trigger('click');
+                            fetchResourceList(1, true);
                             loadResources();
                         }
                     },
@@ -2552,8 +2570,6 @@
                 leaveStartPicker = flatpickr("#leaveStart", {
                     dateFormat: "Y-m-d",
                     disableMobile: true,
-                    // minDate: new Date(),
-                    minDate: "2025-12",
                     disable: [
                         date => date.getDay() === 0, // Sunday
                         ...companyHolidays
@@ -2586,7 +2602,6 @@
                     dateFormat: "Y-m-d",
                     disableMobile: true,
                     minDate: new Date(),
-                    minDate: "2025-12",
                     clickOpens: false, // initially disabled
                     disable: [
                         date => date.getDay() === 0,
@@ -2684,12 +2699,18 @@
                 placeholder: 'Select leave type',
                 allowClear: true
             });
-            $('#leaveDuration').select2({
-                dropdownParent: $('#manageLeaveModal'),
-                width: '100%',
-                placeholder: 'Select duration',
-                allowClear: true
-            });
+            // $('#leaveDuration').select2({
+            //     dropdownParent: $('#manageLeaveModal'),
+            //     width: '100%',
+            //     placeholder: 'Select duration',
+            //     allowClear: true
+            // });
+            // $('#leaveFilterResource').select2({
+            //     dropdownParent: $('#manageLeaveModal'),
+            //     width: '100%',
+            //     placeholder: 'All resources',
+            //     allowClear: true
+            // });
 
             /* Inside set placeholder in search dropdown select2 */
             $('#leaveResource').on('select2:open', function() {
@@ -2786,9 +2807,14 @@
                 $('#leaveRemark').valid();
             });
 
-            // Load leaves list for leave modal
+            // Load leaves list for leave modal (with optional month + resource filters)
             function loadLeaves() {
-                $.get('/leaves', res => {
+                const params = {};
+                const month = $('#leaveFilterMonth').val();
+                const resourceId = $('#leaveFilterResource').val();
+                if (month) params.month = month;
+                if (resourceId) params.resource_id = resourceId;
+                $.get('/leaves', params, res => {
                     leaves = res;
                     renderLeaves();
                     $('#leaveForm')[0].reset();
@@ -2797,6 +2823,11 @@
                     showNotification("Failed to load leaves", "danger");
                 });
             }
+
+            // Leave list filters: apply on button click or when month/resource changes
+            $('#leaveFilterApply').on('click', loadLeaves);
+            $('#leaveFilterMonth').on('change', loadLeaves);
+            $('#leaveFilterResource').on('change', loadLeaves);
 
             // Render leaves list in leave modal
             function renderLeaves() {
@@ -2811,31 +2842,31 @@
                     const dayCount = getLeaveDayCount(l);
 
                     return `
-                                            <div class="holidays-item" data-id="${l.id}">
-                                                <div class="holidays-item-info">
-                                                    <div class="holidays-item-date">
-                                                        ${l.resource.name}
-                                                        • ${l.start_date}
-                                                        ${l.start_date !== l.end_date ? `→ ${l.end_date}` : ''}
-                                                        <span class="holidays-item-desc">
-                                                            (${dayCount === 0.5 ? 'Half day' : `${dayCount} day${dayCount > 1 ? 's' : ''}`})
-                                                        </span>
-                                                    </div>
-                                                    <div class="holidays-item-desc">
-                                                        ${l.type.toUpperCase()}
-                                                        ${l.remark ? ' – ' + l.remark : ''}
-                                                    </div>
-                                                </div>
-                                                <div class="holidays-item-actions">
-                                                    <button class="btn btn-sm btn-dark border-secondary border-opacity-50 leave-edit px-2" data-id="${l.id}" title="Edit Leave">
-                                                        <i class="fas fa-pencil-alt text-primary opacity-75"></i>
-                                                    </button>
-                                                    <button class="btn btn-sm btn-dark border-secondary border-opacity-50 leave-delete px-2" data-id="${l.id}" title="Delete Leave">
-                                                        <i class="fas fa-trash-alt text-danger opacity-75"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        `;
+                        <div class="holidays-item" data-id="${l.id}">
+                            <div class="holidays-item-info">
+                                <div class="holidays-item-date">
+                                    ${l.resource.name}
+                                    • ${l.start_date}
+                                    ${l.start_date !== l.end_date ? `→ ${l.end_date}` : ''}
+                                    <span class="holidays-item-desc">
+                                        (${dayCount === 0.5 ? 'Half day' : `${dayCount} day${dayCount > 1 ? 's' : ''}`})
+                                    </span>
+                                </div>
+                                <div class="holidays-item-desc">
+                                    ${l.type.toUpperCase()}
+                                    ${l.remark ? ' – ' + l.remark : ''}
+                                </div>
+                            </div>
+                            <div class="holidays-item-actions">
+                                <button class="btn btn-sm btn-dark border-secondary border-opacity-50 leave-edit px-2" data-id="${l.id}" title="Edit Leave">
+                                    <i class="fas fa-pencil-alt text-primary opacity-75"></i>
+                                </button>
+                                <button class="btn btn-sm btn-dark border-secondary border-opacity-50 leave-delete px-2" data-id="${l.id}" title="Delete Leave">
+                                    <i class="fas fa-trash-alt text-danger opacity-75"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
                 }).join(''));
             }
 
@@ -2976,7 +3007,6 @@
                 $('#leaveForm')[0].reset();
                 $('#leaveResource').val(null).trigger('change');
 
-                leaveStartPicker.set('minDate', new Date());
                 leaveEndPicker.set('minDate', new Date());
 
                 $('#leaveBtnText').text('Add Leave');
@@ -3006,7 +3036,6 @@
                 if (leaveStartPicker && leaveEndPicker) {
                     leaveStartPicker.clear();
                     leaveEndPicker.clear();
-                    leaveStartPicker.set('minDate', new Date());
                     leaveEndPicker.set('minDate', new Date());
                 }
 
@@ -3025,9 +3054,12 @@
                 $('#leaveForm button[type=submit]').prop('disabled', false);
             });
 
-            // On show: re-init pickers and load leaves
+            // On show: re-init pickers, set default month filter, load leaves
             $('#manageLeaveModal').on('shown.bs.modal', function() {
                 initLeaveFlatpickr();
+                if (!$('#leaveFilterMonth').val()) {
+                    $('#leaveFilterMonth').val(new Date().toISOString().slice(0, 7));
+                }
                 loadLeaves();
             });
 

@@ -21,7 +21,11 @@ class ResourceController extends Controller
         if ($search) {
             $query->where(function($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%");
+                  ->orWhere('email', 'LIKE', "%{$search}%")
+                  ->orWhere('role', 'LIKE', "%{$search}%")
+                  ->orWhereHas('department', function ($cat) use ($search) {
+                    $cat->whereRaw('LOWER(name) LIKE ?', "%{$search}%");
+                });
             });
         }
 

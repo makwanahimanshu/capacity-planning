@@ -11,11 +11,19 @@ use Carbon\CarbonPeriod;
 class HolidayController extends Controller
 {
     /**
-     * Get all holidays sorted by date
+     * Get all holidays sorted by date (optional filter: month as YYYY-MM)
      */
-    public function index()
+    public function index(Request $request)
     {
-        $holidays = Holiday::orderBy('date', 'asc')->get();
+        $query = Holiday::orderBy('date', 'asc');
+
+        if ($request->filled('month') && preg_match('/^\d{4}-\d{2}$/', $request->month)) {
+            $startOfMonth = Carbon::parse($request->month . '-01')->startOfDay();
+            $endOfMonth = Carbon::parse($request->month . '-01')->endOfMonth();
+            $query->whereBetween('date', [$startOfMonth, $endOfMonth]);
+        }
+
+        $holidays = $query->get();
         return response()->json($holidays);
     }
 
